@@ -112,6 +112,34 @@ Injury decays over simulated time, so the world recovers. A third offence replac
 
 **Movement latency.** Polling moved from 250ms to 150ms and the minimum playback delay from 260ms to 170ms, roughly halving the input latency the interpolation buffer costs while keeping the buffer fed. 138 tests across 18 files pass.
 
+## Acts, fear, visible injury and the police (September 10, follow-up)
+
+Consequences were generalised from harm to any act, and the three gaps named at the end of the previous pass were closed.
+
+**Any act, not just harm.** The model classifies the player's stated act from a bounded vocabulary — affection, gift, help, praise, insult, threat, theft, physical, or none — and the engine prices it. Each carries relationship change in both directions, need effects, injury, fear, a witness reaction, a mood and a reputation. Kindness earns Thoughtful then Beloved exactly as cruelty earns Callous then Violent, and a resident can hold both at once. 12 rule tests in `shared/life/acts.test.ts`, plus engine tests for kind acts, escalation in both directions, detention and fleeing.
+
+**Verified live against gpt-6-astra**, player saying "I punched you in the face" on an isolated instance:
+
+| | result |
+| --- | --- |
+| June injury | 46, mood `Hurt` |
+| June's fear of the player | 66 |
+| Player traits gained | **Callous**, **Charged** |
+| Arrests | 1, detained 45s |
+| Command while detained | rejected: "The police are still dealing with you. 45 seconds left." |
+
+Events recorded: *June is hurt and does not want Alex near them* / *Alex is now known as Callous* / *June called the police on Alex* / *Alex was detained. The household has a record of it.*
+
+**Fear and fleeing.** Fear is tracked per person and fades more slowly than a bruise, because being frightened of someone outlasts the mark they left. Above the threshold a resident gets up and leaves when that person comes within a few metres, rather than only refusing when spoken to. Observed in the browser: June broke off her activity, said "Please stay away from me" and walked away as the player approached.
+
+**Visible injury.** An injured resident carries dressings and a guarded stoop that scales with how badly they were hurt. The dressings hang off the head node, not the forearm: an imported character's arms are driven by bones, so a forearm wrap floats away from the visible limb.
+
+**The police.** Violence and theft summon a consequence from outside the household. The player is detained and cannot issue commands while the world keeps running, everyone in the home thinks less of them, and the record persists as a `Charged` trait.
+
+**Save compatibility.** `fear`, `kindDone`, `arrestedUntil` and `arrests` all default in the save schema, so saves written before this still load. 146 tests across 18 files pass.
+
+**Not implemented.** An act only registers against the resident being spoken to; harming someone else mid-conversation does nothing. There is no police officer rendered in the scene — the arrest is state and events, not a visitor. Injury does not affect walking speed or block activities beyond refusing contact.
+
 ## Remaining limits and adoption gate
 
 **Astra verified September 10 after the key was configured.** The isolated `life-probe.ts` request used `gpt-6-astra`, returned a valid `share` decision in **4,149 ms**, and `applyReaction` returned true with June entering Sharing a meal and emitting the cooperation event. The production server was gracefully restarted with the same world identity, its health endpoint reports Astra / gpt-6-astra, and the browser badge agrees. The probe did not modify the live save. This verifies the model/engine path; a production-browser Astra conversation was not sent during this follow-up.
