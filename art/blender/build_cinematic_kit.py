@@ -451,7 +451,61 @@ def bookshelf():
     export('bookshelf',[w,d],'Local width1.8 depth.7 height2.3; front-Z. Recessed lower cupboards, molded shelves, varied bound books, stoneware, nested bowls and framed artwork; all decor and knobs within cabinet footprint.')
 
 
-builders={'sofa':sofa,'bed':bed,'dining-table':table,'dining-chair':chair,'kitchen':kitchen,'window-frame':window,'fridge':fridge,'bookshelf':bookshelf}
+def wall_shelf():
+    """Open plaster-wall shelving. Origin sits on the wall face at the lowest bracket point."""
+    begin();w=1.72;d=.30
+    # Keep every point at or above the origin so the kit's shared floor invariant still holds.
+    base=.19
+    for i,y in enumerate([base,base+.44]):
+        box('Molded shelf plank',(w,.042,d),(0,y+.021,-.155),'wood.oak',.008)
+        box('Plank front lip',(w,.014,.022),(0,y+.001,-.294),'wood.oak',.004)
+        # Iron brackets: a wall cleat, an under-plank arm and the diagonal that carries the load.
+        for x in [-.66,.66]:
+            rod('Bracket wall cleat',(x,y-.185,-.012),(x,y,-.012),.0125,'metal.iron')
+            rod('Bracket shelf arm',(x,y-.006,-.012),(x,y-.006,-.268),.0125,'metal.iron')
+            rod('Bracket diagonal stay',(x,y-.181,-.02),(x,y-.017,-.234),.0095,'metal.iron')
+    # Lower plank: stacked everyday dishes, a jar and a bowl, arranged with visible negative space.
+    for i in range(4):
+        rod('Stacked dinner plate',(-.60,base+.045+i*.0155,-.15),(-.60,base+.056+i*.0155,-.15),.108,'ceramic.ivory',vertices=30)
+    for i in range(3):
+        rod('Stacked side plate',(-.33,base+.045+i*.0145,-.16),(-.33,base+.055+i*.0145,-.16),.079,'ceramic.sage',vertices=26)
+    pottery('Shelf storage jar',.0,base+.042,-.15,.088,.235,'ceramic.ochre')
+    pottery('Wide serving bowl',.30,base+.042,-.15,.135,.10,'ceramic.ivory','bowl')
+    pottery('Slim ivory bottle',.60,base+.042,-.14,.062,.28,'ceramic.ivory')
+    # Upper plank: taller vessels, a short book stack and nested bowls.
+    pottery('Tall stoneware vase',-.62,base+.482,-.15,.096,.30,'ceramic.sage')
+    pottery('Ochre lidded pot',-.31,base+.482,-.16,.104,.165,'ceramic.ochre')
+    for i,cover in enumerate(['fabric.terracotta','fabric.sage','wood.walnut']):
+        box('Shelved hardback',(.185,.041,.135),(.02,base+.503+i*.043,-.15),cover,.006)
+    for i in range(2):
+        pottery('Nested kitchen bowl',.34,base+.480+i*.046,-.15,.126-i*.017,.088,'ceramic.sage','bowl')
+    pottery('Ivory shelf crock',.63,base+.482,-.15,.081,.205,'ceramic.ivory')
+    export('wall-shelf',[w,d],'Local width1.72 depth.30; plank tops at.232 and.672, tallest vessel reaching.972. Origin on the wall face at the lowest bracket point, shelves project -Z. Iron brackets, dishes, stoneware and books stay inside the plank footprint.')
+
+
+def coffee_table():
+    """Low walnut table with a magazine shelf, sized for the living rug."""
+    begin();w=1.15;d=.62
+    for x in [-.505,.505]:
+        for z in [-.235,.235]:rod('Tapered table leg',(x*1.02,0,z*1.03),(x,.40,z),.026,'wood.walnut',.019)
+    for x in [-.505,.505]:box('Side apron rail',(.05,.055,.44),(x,.352,0),'wood.walnut',.008)
+    box('Lower magazine shelf',(.96,.028,.40),(0,.175,0),'wood.oak',.006)
+    for z in [-.235,.235]:rod('Shelf support stretcher',(-.50,.175,z),(.50,.175,z),.017,'wood.walnut')
+    box('Planked table top',(w,.046,d),(0,.423,0),'wood.walnut',.012)
+    box('Top edge chamfer band',(1.10,.014,.57),(0,.397,0),'wood.walnut',.006)
+    # Lived-in surface: a stacked pair of books, a tray and a candle, all within the top footprint.
+    for i,cover in enumerate(['fabric.sage','fabric.terracotta']):
+        box('Coffee table book',(.29,.045,.225),(-.26,.469+i*.047,.03),cover,.007)
+    box('Open page block',(.268,.022,.205),(-.26,.577,.03),'ceramic.ivory',.003)
+    box('Brass catch-all tray',(.235,.022,.175),(.30,.457,-.02),'metal.brass',.008)
+    pottery('Pillar candle',.30,.468,-.02,.043,.115,'ceramic.ivory')
+    pottery('Shelved magazine crock',-.24,.189,0,.072,.10,'ceramic.ochre','bowl')
+    for i in range(3):
+        box('Shelved magazine',(.30,.016,.235),(.22,.196+i*.018,0),['fabric.linen','ceramic.ochre','fabric.sage'][i],.004)
+    export('coffee-table',[w,d],'Local1.15 x.62, top.446, lower shelf.189; front-Z. Tapered legs, aprons, planked top with chamfer band, books, brass tray, candle and shelved magazines all inside the nominal footprint.')
+
+
+builders={'sofa':sofa,'bed':bed,'dining-table':table,'dining-chair':chair,'kitchen':kitchen,'window-frame':window,'fridge':fridge,'bookshelf':bookshelf,'wall-shelf':wall_shelf,'coffee-table':coffee_table}
 requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(builders)
 for key in requested: builders[key]()
 if len(requested) != len(builders) and (OUT/'manifest.json').exists():

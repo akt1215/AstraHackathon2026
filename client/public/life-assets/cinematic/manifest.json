@@ -305,6 +305,86 @@
       "triangles": 36840,
       "notes": "Local width1.8 depth.7 height2.3; front-Z. Recessed lower cupboards, molded shelves, varied bound books, stoneware, nested bowls and framed artwork; all decor and knobs within cabinet footprint.",
       "sha256": "10149bd1eafa18cc127a884b40e5ce1013ee0c8e73b7a9cce268670a1f0dba0b"
+    },
+    {
+      "file": "wall-shelf.glb",
+      "nominalFootprint": [
+        1.72,
+        0.3
+      ],
+      "bounds": {
+        "min": [
+          -0.8600000143051147,
+          0.003134995698928833,
+          -0.3050000071525574
+        ],
+        "max": [
+          0.8600000143051147,
+          0.972000002861023,
+          0.0005000000819563866
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ivory",
+        "cinematic.ceramic.ochre",
+        "cinematic.ceramic.sage",
+        "cinematic.fabric.sage",
+        "cinematic.fabric.terracotta",
+        "cinematic.metal.iron",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 8,
+      "triangles": 9888,
+      "notes": "Local width1.72 depth.30; plank tops at.232 and.672, tallest vessel reaching.972. Origin on the wall face at the lowest bracket point, shelves project -Z. Iron brackets, dishes, stoneware and books stay inside the plank footprint.",
+      "sha256": "63a57606a81d44ecc3c90deab0d9fe1e0d75151ca8411a8781ac0ca14c136e5b"
+    },
+    {
+      "file": "coffee-table.glb",
+      "nominalFootprint": [
+        1.15,
+        0.62
+      ],
+      "bounds": {
+        "min": [
+          -0.574999988079071,
+          -0.0006728023290634155,
+          -0.3100000321865082
+        ],
+        "max": [
+          0.5750001072883606,
+          0.5879999995231628,
+          0.3100000321865082
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ivory",
+        "cinematic.ceramic.ochre",
+        "cinematic.fabric.linen",
+        "cinematic.fabric.sage",
+        "cinematic.fabric.terracotta",
+        "cinematic.metal.brass",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 8,
+      "triangles": 4312,
+      "notes": "Local1.15 x.62, top.446, lower shelf.189; front-Z. Tapered legs, aprons, planked top with chamfer band, books, brass tray, candle and shelved magazines all inside the nominal footprint.",
+      "sha256": "543fc313d507008ec1120afcc39f02e2e455cb874c36f38790eb6110ead5bdb8"
     }
   ]
 }

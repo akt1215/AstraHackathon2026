@@ -8,3 +8,6 @@ data/
 *.log
 artifacts/
 .local-backups/
+
+# Blender writes a .blend1 rollback beside each saved source.
+*.blend1
