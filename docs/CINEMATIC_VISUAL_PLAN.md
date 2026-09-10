@@ -1,6 +1,6 @@
 # Cinematic loft revision
 
-September 10, 2026. Proposed visual pass after the user's explicit rejection of the proof's cinematic/realistic fidelity. Implementation has not begun; concept target is awaiting feedback.
+September 10, 2026. Proposed visual pass after the user's explicit rejection of the proof's cinematic/realistic fidelity. Akito approved the concept target: “Yes—match this cinematic loft.” Implementation is in progress.
 
 ## Context and target
 
@@ -42,9 +42,9 @@ Keep the current warm, lived-in loft identity. Aim for physically convincing woo
 
 ## Tooling and open decisions
 
-Blender is absent from PATH and `/Applications/Blender.app`; no Blender MCP capability is currently connected. Blender would materially help the asset work. Unity is unnecessary for this browser approach; changing engines would add work without supplying the missing art assets. Blender can also run reproducible scripts without an MCP connector once installed.
+Blender 5.2.1 is installed at `/Applications/Blender.app` and has generated the furniture assets through its command-line interface. No Blender add-on or MCP connector is needed. Unity is unnecessary for this browser approach; changing engines would add work without supplying the missing art assets. Blender can also run reproducible scripts without an MCP connector once installed.
 
-User feedback on the generated visual target is pending. The existing game remains available, now configured with Astra; no visual code changes are included in this plan.
+The user approved the visual target and installed Blender 5.2.1. Eight detailed GLB assets, scanned PBR materials, city geometry, lighting and reduced HUD are integrated and committed. Final production rebuild and full visual/gameplay checks remain pending. Work is handed to Claude Code at the user’s request; see `../CLAUDE_HANDOFF.md`. The existing production bundle predates the final integration.
 
 ## Self-review
 
