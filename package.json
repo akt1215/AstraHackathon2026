@@ -12,9 +12,16 @@
     "start": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/index.ts",
     "test": "vitest run --root .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "probe": "node --env-file-if-exists=.env --import tsx server/probe.ts"
+    "probe": "node --env-file-if-exists=.env --import tsx server/probe.ts",
+    "dev:life": "concurrently -k -n world,view \"npm:dev:life:server\" \"npm:dev:life:client\"",
+    "dev:life:server": "node --env-file-if-exists=.env --import tsx --watch server/life-server.ts",
+    "dev:life:client": "vite --config vite.life.config.ts",
+    "build:life": "vite build --config vite.life.config.ts",
+    "play:life": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/life-server.ts"
   },
   "dependencies": {
+    "@babylonjs/core": "^9.26.0",
+    "@babylonjs/loaders": "^9.26.0",
     "openai": "^7",
     "zod": "^4"
   },
