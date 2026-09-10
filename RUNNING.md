@@ -40,7 +40,7 @@ it does not simulate free-text understanding or adaptive NPC decisions.
 Reach the refuge beyond the gate **with Ivo**. Click a floor tile or use WASD/arrows for
 one step; click an object to inspect it, then use its contextual action or E. Use the
 prominent text field for your own phrasing and combinations. There is no player verb list.
-Each accepted turn lets the two NPCs choose their own immediate response.
+Walking advances locally without a model call unless an NPC first notices someone, receives a meaningful observation, changes condition, or sees you enter the guarded threshold. Recognition persists across reloads and leaving view. An agreed follower continues through local movement rules. Dialogue, actual object interactions and intentional waits still offer NPC decision turns.
 
 Objects have actual positions, holders and properties: a fragile thrown object breaks
 and makes noise, a small object fits the gate gap, a crate obstructs a cell, and medicine

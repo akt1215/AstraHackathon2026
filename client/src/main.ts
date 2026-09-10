@@ -38,6 +38,8 @@ let state: PublicState | undefined;
 let provider: ProviderInfo | undefined;
 let selected: string | null = null;
 let pending = false;
+let pendingMessage = '';
+let reactionTimer: ReturnType<typeof setTimeout> | undefined;
 let connected = false;
 let sessionEpoch = 0;
 let muted = localStorage.getItem('dm-muted') === 'true';
@@ -103,11 +105,33 @@ function updateAvailability(): void {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-direct], [data-drop]')) button.disabled = locked;
   $<HTMLButtonElement>('#save').disabled = locked;
   $<HTMLButtonElement>('#new-run').disabled = pending || Boolean(state?.busy) || !connected;
-  $('#activity').textContent = !connected ? 'Reconnecting to the world…' : pending || state?.busy ? 'The world is thinking…' : state?.objective.status === 'complete' ? 'You made it through.' : provider?.available ? 'Your move' : textAvailable ? 'Narrator paused · you can retry' : 'Narrator offline · direct play works';
-  $('#activity').classList.toggle('thinking', pending || Boolean(state?.busy));
+  $('#activity').textContent = !connected ? 'Reconnecting to the world…' : pending ? pendingMessage : state?.busy ? 'Someone is reacting…' : state?.objective.status === 'complete' ? 'You made it through.' : provider?.available ? 'Your move' : textAvailable ? 'Narrator paused · you can retry' : 'Narrator offline · direct play works';
+  $('#activity').classList.toggle('thinking', pending ? Boolean(pendingMessage) : Boolean(state?.busy));
   input.setAttribute('aria-busy', String(pending));
   retryButton.hidden = !actionRequests.current || pending;
   retryButton.disabled = locked;
+}
+
+function beginPending(message: string, delayedReaction = false): void {
+  clearTimeout(reactionTimer);
+  pending = true;
+  pendingMessage = message;
+  if (delayedReaction) {
+    // Local steps normally finish before this; avoid flashing a thinking indicator.
+    reactionTimer = setTimeout(() => {
+      pendingMessage = 'Someone is reacting…';
+      updateAvailability();
+    }, 200);
+  }
+  updateAvailability();
+}
+
+function endPending(): void {
+  clearTimeout(reactionTimer);
+  reactionTimer = undefined;
+  pending = false;
+  pendingMessage = '';
+  updateAvailability();
 }
 
 function drawRoom(): void {
@@ -261,9 +285,8 @@ async function act(payload: PlayerIntent): Promise<void> {
   try { actionRequest = actionRequests.begin(state, payload); }
   catch (error) { setNotice(error instanceof Error ? error.message : 'Check the previous move first.', true); updateAvailability(); return; }
   primeAudio();
-  pending = true;
   setNotice('');
-  updateAvailability();
+  beginPending('input' in payload ? 'Considering your action…' : '', 'direct' in payload);
   try {
     const result = await request<ActionResponse>('/api/action', actionRequest);
     actionRequests.clear();
@@ -286,8 +309,7 @@ async function act(payload: PlayerIntent): Promise<void> {
     const message = error instanceof Error ? error.message : 'The connection was interrupted.';
     setNotice(`${message}${!definitive && actionRequests.current ? ' The move may already be recorded. Check its result before trying another action; your words are still here.' : ''}`, true);
   } finally {
-    pending = false;
-    updateAvailability();
+    endPending();
   }
 }
 
@@ -363,9 +385,8 @@ $('#new-run').addEventListener('click', () => {
 });
 $('#new-dialog').addEventListener('close', async () => {
   if ($<HTMLDialogElement>('#new-dialog').returnValue !== 'new') return;
-  pending = true;
   sessionEpoch++;
-  updateAvailability();
+  beginPending('Beginning your story…');
   try {
     const result = await request<{ state: PublicState; provider: ProviderInfo }>('/api/new', { variant: $<HTMLSelectElement>('#variant').value });
     sessionEpoch++;
@@ -379,7 +400,7 @@ $('#new-dialog').addEventListener('close', async () => {
     turnReceipt.hidden = true;
     acceptState(result.state, true);
   } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not begin a new story.', true); }
-  finally { pending = false; updateAvailability(); }
+  finally { endPending(); }
 });
 
 updateSettings();

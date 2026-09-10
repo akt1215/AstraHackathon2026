@@ -72,3 +72,24 @@ multi-room scenarios, portraits and voice narration are outside this build.
 No public deployment was requested. Production verification means the actual built local
 server, not a hosted URL. No exported document/file flow is part of the game, so external
 export round-trip testing is not applicable.
+
+## Movement responsiveness correction
+
+After per-tile waits were reported as painfully slow, walking now uses persisted NPC
+awareness and observation cursors to select costly decision slots. Familiar companions
+do not rediscover the player, repeat sightings do not trigger again, and accepted following
+continues through validated local steps. Dialogue, interactions and explicit waits keep
+deliberate decision opportunities. No user vocabulary allowlist was introduced.
+
+58 tests now pass. Added checks for quiet walking, one-time sighting, re-entry/reload,
+sleepers, first sight caused by an NPC turning, report/noise delivery, guarded-threshold
+entry, and follower knowledge/passability. Review found and fixed prematurely marking
+new actors as noticed after a turn: first detection must remain pending until a decision
+can receive it. Existing crash/retry tests still pass.
+
+Five real HTTP steps with Claude configured: 28 ms, 9,964 ms, 17 ms, 21 ms, 18 ms.
+Only the second step called the guard, at first sight; subsequent visible steps called
+no model. The browser also committed a direct step with a 0.0-second receipt and returned
+to “Your move.” Short direct requests no longer flash a thinking indicator; a genuinely
+long response is labeled “Someone is reacting…”. First-sighting and other meaningful
+reactions still wait for the local provider. This is event gating, not faster inference.
