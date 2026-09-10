@@ -2,7 +2,9 @@
 export const STRIDE_PER_METRE = 5.2;
 /** Beyond this gap the resident was moved, not walked: reload, preset switch or a reset. */
 export const SNAP_DISTANCE = 2.2;
-const MIN_DELAY = 260, MAX_DELAY = 720, KEEP = 12;
+// The playback delay is the price of smooth motion, paid as input latency, so it tracks the poll
+// cadence rather than sitting at a fixed conservative value.
+const MIN_DELAY = 170, MAX_DELAY = 720, KEEP = 14;
 
 export interface MotionSample { t: number; x: number; z: number }
 export interface MotionTrail { samples: MotionSample[]; interval: number; delay: number; lastAt: number }

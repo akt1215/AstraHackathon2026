@@ -63,7 +63,7 @@ describe('rendered locomotion', () => {
   it('bounds the history it retains', () => {
     const trail = createTrail();
     for (let t = 0; t < 4000; t += 50) record(trail, t, 0, 0);
-    expect(trail.samples.length).toBeLessThanOrEqual(12);
+    expect(trail.samples.length).toBeLessThanOrEqual(14);
   });
 
   it('plays back evenly when reports are spaced unevenly along the simulation clock', () => {

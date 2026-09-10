@@ -58,6 +58,73 @@ describe('continuous life simulation', () => {
     expect(restored.state().version).toBe(version);
     advance(restored, 20); expect(player(restored).needs.energy).toBeGreaterThan(player(sim).needs.energy);
   });
+  it('makes violence land on the world instead of only being disapproved of', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    const before = player(sim).relationships.june ?? 0;
+    const request = sim.beginTalk('june', 'I punched her.');
+    // The model may still propose a friendly outcome; the classification is what the engine acts on.
+    expect(sim.applyReaction(request, { action: 'accept_chat', speech: 'Why would you do that?', harm: 'physical' })).toBe(true);
+    const june = sim.state().residents.find(r => r.id === 'june')!;
+    expect(june.hurt, 'june is injured').toBeGreaterThan(20);
+    expect(june.mood).toBe('Hurt');
+    expect(june.needs.fun, 'being hurt costs her').toBeLessThan(66);
+    expect(player(sim).relationships.june, 'the relationship is wrecked').toBeLessThan(before - 40);
+    expect(player(sim).traits, 'the player is marked for it').toContain('Callous');
+    expect(june.activity?.kind, 'she leaves').toBe('walk');
+    expect(sim.state().events.some(e => /hurt June/.test(e.text))).toBe(true);
+    // A housemate who was not touched still thinks less of the player.
+    expect(player(sim).relationships.leo).toBeLessThan(5);
+  });
+
+  it('refuses the harmed resident being approached again while she is still hurt', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'accept_chat', speech: 'Stop.', harm: 'physical' });
+    const reply = sim.applyReaction(sim.beginTalk('june', 'Lets share a meal'), { action: 'share', speech: 'Of course, sit down.' });
+    expect(reply).toBe(true);
+    expect(sim.state().residents.find(r => r.id === 'june')!.activity?.kind, 'she will not share a meal with him').not.toBe('share');
+  });
+
+  it('escalates a repeat offender to a standing reputation', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    for (let i = 0; i < 3; i++) {
+      // She walks away each time, so the player has to follow her before doing it again.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        advance(sim, 6);
+        const june = sim.state().residents.find(r => r.id === 'june')!;
+        const me = player(sim);
+        if (Math.hypot(me.x - june.x, me.z - june.z) <= 2.6 && !me.activity) break;
+        const spot = [[0, -1.2], [0, 1.2], [-1.2, 0], [1.2, 0], [-.9, -.9], [.9, .9], [-.9, .9], [.9, -.9]]
+          .map(([dx, dz]) => ({ x: june.x + dx!, z: june.z + dz! }))
+          .find(point => walkable(sim.state(), point));
+        if (spot) { command(sim, { kind: 'walk', ...spot }); advance(sim, 10); }
+      }
+      sim.applyReaction(sim.beginTalk('june', 'again'), { action: 'decline', speech: 'Stop it.', harm: 'physical' });
+      advance(sim, 4);
+    }
+    expect(player(sim).traits).toContain('Violent');
+    expect(player(sim).traits).not.toContain('Callous');
+    expect(player(sim).harmDone).toBe(3);
+  });
+
+  it('rejects a harm classification outside the contract', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    const request = sim.beginTalk('june', 'hello');
+    expect(() => sim.applyReaction(request, { action: 'accept_chat', speech: 'hi', harm: 'catastrophic' as never })).toThrow();
+  });
+
+  it('heals an injury over time so the world does not stay broken', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'decline', speech: 'Go away.', harm: 'physical' });
+    expect(sim.state().residents.find(r => r.id === 'june')!.hurt).toBeGreaterThan(20);
+    advance(sim, 900);
+    expect(sim.state().residents.find(r => r.id === 'june')!.hurt).toBe(0);
+  });
+
   it('makes relationship history affect cooperation and rejects stale model decisions after reset', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);

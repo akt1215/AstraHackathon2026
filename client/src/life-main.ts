@@ -376,7 +376,7 @@ async function poll(){
   }catch(error){
     if(!state)$('#loading-message').textContent='Waiting for the local game server on port 8791…';
     else $('#save-status').textContent='Connection interrupted · reconnecting';
-  }finally{if(!stopped)setTimeout(()=>void poll(),pending?500:250);}
+  }finally{if(!stopped)setTimeout(()=>void poll(),pending?320:150);}
 }
 void poll();
 window.addEventListener('beforeunload',()=>{stopped=true;scene.dispose();});

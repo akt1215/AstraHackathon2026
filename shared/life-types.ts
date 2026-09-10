@@ -17,6 +17,10 @@ export interface LifeMemory { id: string; at: number; actor: string; text: strin
 export interface LifeResident extends LifePoint {
   id: string; name: string; role: 'player' | 'npc'; color: string; skin: string; hair: string;
   traits: string[]; aspiration: string; mood: string;
+  /** Injury 0-100 from being harmed, recovering over simulated time. */
+  hurt: number;
+  /** How many times this resident has harmed someone; drives earned traits. */
+  harmDone: number;
   needs: Record<NeedKey, number>; relationships: Record<string, number>;
   memories: LifeMemory[]; activity: LifeActivity | null; queue: LifeActivity[];
   facing: number; speech: string | null; speechUntil: number;

@@ -1,10 +1,15 @@
 import type { ActivityKind, LifeActivity, LifeCommandEnvelope, LifeEvent, LifePoint, LifeProvider, LifeResident, LifeResponse, LifeState, NeedKey } from '../life-types';
 import { approachResident, distance, route, walkable } from './navigation';
 import { createLifeWorld, DURATIONS, LABELS, NEEDS, SOCIAL } from './world';
+import { HARM, HURT_THRESHOLD, hurtAfterRecovery, refusesContact, traitsAfterHarm, type HarmLevel } from './harm';
 import { conversationMemories, retainMemories } from './memory';
 
 export type ReactionAction = 'accept_chat' | 'share' | 'decline' | 'walk_away';
-export interface ReactionDecision { action: ReactionAction; speech: string }
+/**
+ * The model classifies what the player did and proposes a reply; it never sets the consequence.
+ * `harm` is a report about the player's own words, so a resident cannot be argued out of an injury.
+ */
+export interface ReactionDecision { action: ReactionAction; speech: string; harm?: HarmLevel }
 export interface TalkRequest {
   id: string; worldId: string; activityId: string; targetActivityId: string; targetId: string; text: string;
   context: { name: string; traits: string[]; needs: LifeResident['needs']; relationship: number; memories: LifeResident['memories']; playerName: string; hour: number; activity: string | null };
@@ -180,7 +185,8 @@ export class LifeSimulation {
       }
       if (!r.activity && r.role === 'npc') this.autonomy(r);
       const lowest = NEEDS.reduce((a, b) => r.needs[a] < r.needs[b] ? a : b);
-      r.mood = r.activity?.phase === 'doing' && r.activity.kind === 'sleep' ? 'Asleep' : r.needs[lowest] < 25 ? ({ hunger: 'Hungry', energy: 'Exhausted', social: 'Lonely', fun: 'Bored' })[lowest] : r.activity?.kind === 'paint' ? 'Inspired' : r.activity?.kind === 'chat' || r.activity?.kind === 'share' ? 'Connected' : r.needs[lowest] > 65 ? 'Content' : 'Comfortable';
+      r.hurt = hurtAfterRecovery(r.hurt, dt);
+      r.mood = r.hurt > HURT_THRESHOLD ? 'Hurt' : r.activity?.phase === 'doing' && r.activity.kind === 'sleep' ? 'Asleep' : r.needs[lowest] < 25 ? ({ hunger: 'Hungry', energy: 'Exhausted', social: 'Lonely', fun: 'Bored' })[lowest] : r.activity?.kind === 'paint' ? 'Inspired' : r.activity?.kind === 'chat' || r.activity?.kind === 'share' ? 'Connected' : r.needs[lowest] > 65 ? 'Content' : 'Comfortable';
     }
     this.world.version++;
   }
@@ -238,14 +244,14 @@ export class LifeSimulation {
     const relationship = target.relationships[actor.id] ?? 0;
     if (activity.kind === 'insult') {
       this.relationship(actor, target, -18); this.say(target, 'That hurt. I need some space.');
-      this.event(actor.id, `${actor.name} insulted ${target.name}; ${target.name} wants space.`, 'insult', target.id); this.walkAway(target, actor); return;
+      this.applyHarm(actor, target, 'threat', target.traits.includes('Warm') ? 'That was cruel.' : 'Do not speak to me like that.'); return;
     }
     if (activity.kind === 'apologize') {
       this.relationship(actor, target, 9); this.say(target, relationship < -15 ? 'Thank you. I still need time.' : 'Thank you for saying that.');
       this.event(actor.id, `${actor.name} apologized to ${target.name}.`, 'apology', target.id); return;
     }
-    if (relationship < -12 || target.needs.energy < 18) {
-      this.say(target, relationship < -12 ? 'After what happened, I need some space.' : 'I am too tired right now.');
+    if (refusesContact(target.hurt, relationship) || relationship < -12 || target.needs.energy < 18) {
+      this.say(target, target.hurt > HURT_THRESHOLD ? 'Stay away from me.' : relationship < -12 ? 'After what happened, I need some space.' : 'I am too tired right now.');
       this.event(target.id, `${target.name} declined ${actor.name}'s invitation${relationship < -12 ? ' because of their recent history' : ' to rest'}.`, 'declined', actor.id);
       this.walkAway(target, actor); this.clear(actor, false); return;
     }
@@ -255,6 +261,31 @@ export class LifeSimulation {
     actor.facing = Math.atan2(target.x - actor.x, target.z - actor.z); target.facing = actor.facing + Math.PI;
     this.say(target, activity.kind === 'share' ? 'There is always room for one more.' : activity.kind === 'compliment' ? 'That means a lot. Thank you!' : target.traits.includes('Creative') ? 'I have been working on something new.' : 'I am glad you came over.');
     this.event(actor.id, `${actor.name} and ${target.name} ${activity.kind === 'share' ? 'shared a meal' : activity.kind === 'compliment' ? 'shared a kind moment' : 'spent time together'}.`, 'social', target.id);
+  }
+  /**
+   * Apply a harmful act. Every number comes from the engine's own table, never from the model, and
+   * the reputation it leaves on the actor is permanent state rather than a line of dialogue.
+   */
+  private applyHarm(actor: LifeResident, target: LifeResident, level: Exclude<HarmLevel, 'none'>, said: string): void {
+    const rule = HARM[level];
+    target.hurt = clamp(target.hurt + rule.hurt);
+    for (const need of NEEDS) if (rule.needs[need as keyof typeof rule.needs] !== undefined) target.needs[need] = clamp(target.needs[need] + rule.needs[need as keyof typeof rule.needs]);
+    target.mood = rule.mood;
+    this.relationship(actor, target, rule.relationship);
+    actor.harmDone += 1;
+    const earned = traitsAfterHarm(actor.traits, actor.harmDone);
+    const gained = earned.filter(trait => !actor.traits.includes(trait));
+    actor.traits = earned;
+    if (said.trim()) this.say(target, said.trim().slice(0, 400));
+    this.event(actor.id, `${actor.name} ${rule.verb} ${target.name}.`, 'insult', target.id);
+    if (level === 'physical') this.event(target.id, `${target.name} is hurt and does not want ${actor.name} near them.`, 'insult', actor.id);
+    // Anyone else in the home saw it and thinks less of whoever did it.
+    for (const witness of this.world.residents) {
+      if (witness.id === actor.id || witness.id === target.id) continue;
+      this.relationship(actor, witness, rule.witness);
+    }
+    for (const trait of gained) this.event(actor.id, `${actor.name} is now known as ${trait}.`, 'insult', target.id);
+    this.walkAway(target, actor);
   }
   private relationship(a: LifeResident, b: LifeResident, delta: number): void { a.relationships[b.id] = clamp((a.relationships[b.id] ?? 0) + delta, -100); b.relationships[a.id] = clamp((b.relationships[a.id] ?? 0) + delta, -100); }
   private walkAway(r: LifeResident, away: LifeResident): void {
@@ -299,14 +330,21 @@ export class LifeSimulation {
   }
   applyReaction(request: TalkRequest, decision: ReactionDecision): boolean {
     if (this.world.id !== request.worldId || this.pendingTalk?.id !== request.id) return false;
-    if (!['accept_chat', 'share', 'decline', 'walk_away'].includes(decision.action) || !decision.speech.trim() || decision.speech.length > 400) throw new LifeError('The resident response was outside the supported contract.');
+    const harm: HarmLevel = decision.harm ?? 'none';
+    if (!['accept_chat', 'share', 'decline', 'walk_away'].includes(decision.action) || !['none', 'threat', 'physical'].includes(harm) || !decision.speech.trim() || decision.speech.length > 400) throw new LifeError('The resident response was outside the supported contract.');
     const player = this.resident('player'), target = this.resident(request.targetId);
     this.pendingTalk = null;
     if (player.activity?.id !== request.activityId || target.activity?.id !== request.targetActivityId || distance(player, target) > 3 || target.activity?.kind === 'sleep') {
       if (player.activity?.id === request.activityId) this.clear(player, false);
       return false;
     }
-    const reluctant = (target.relationships.player ?? 0) < -20;
+    if (harm !== 'none') {
+      this.clear(player, false); this.clear(target);
+      this.applyHarm(player, target, harm, decision.speech);
+      this.world.version++;
+      return true;
+    }
+    const reluctant = refusesContact(target.hurt, target.relationships.player ?? 0);
     const action = reluctant && (decision.action === 'share' || decision.action === 'accept_chat') ? 'decline' : decision.action;
     this.clear(player, false); this.clear(target);
     if (action === 'accept_chat' || action === 'share') {
@@ -317,7 +355,7 @@ export class LifeSimulation {
       this.event(target.id, `${target.name}: ${decision.speech}`, 'model-speech', player.id);
       this.event(target.id, `${target.name} ${action === 'share' ? 'agreed to share a meal' : 'chose to spend time with you'}.`, 'cooperation', player.id);
     } else {
-      const speech = reluctant && decision.action !== action ? 'After what happened, I need some space first.' : decision.speech;
+      const speech = reluctant && decision.action !== action ? (target.hurt > 0 ? 'Not after what you did to me.' : 'After what happened, I need some space first.') : decision.speech;
       this.say(target, speech); this.event(target.id, `${target.name}: ${speech}`, 'model-speech', player.id);
       this.event(target.id, `${target.name} ${action === 'walk_away' ? 'ended the conversation and walked away' : 'declined to join you'}.`, 'declined', player.id);
       if (action === 'walk_away') this.walkAway(target, player);

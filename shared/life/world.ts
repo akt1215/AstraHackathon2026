@@ -9,7 +9,7 @@ function object(id: ObjectKind, name: string, x: number, z: number, width: numbe
   return { id, name, kind: id, x, z, width, depth, approach: { x: ax, z: az }, actions, occupiedBy: null };
 }
 function resident(id: string, name: string, x: number, z: number, color: string, traits: string[], needs: LifeResident['needs']): LifeResident {
-  return { id, name, x, z, role: id === 'player' ? 'player' : 'npc', color, skin: id === 'leo' ? '#b77d59' : '#e8b58c', hair: id === 'june' ? '#783f2b' : '#252638', traits, aspiration: id === 'june' ? 'Make a home where everyone belongs' : id === 'leo' ? 'Find inspiration in everyday life' : 'Build a life worth coming home to', mood: 'Comfortable', needs, relationships: id === 'player' ? { june: 12, leo: 5 } : { player: id === 'june' ? 12 : 5, [id === 'june' ? 'leo' : 'june']: 20 }, memories: [], activity: null, queue: [], facing: 0, speech: null, speechUntil: 0 };
+  return { id, name, x, z, role: id === 'player' ? 'player' : 'npc', hurt: 0, harmDone: 0, color, skin: id === 'leo' ? '#b77d59' : '#e8b58c', hair: id === 'june' ? '#783f2b' : '#252638', traits, aspiration: id === 'june' ? 'Make a home where everyone belongs' : id === 'leo' ? 'Find inspiration in everyday life' : 'Build a life worth coming home to', mood: 'Comfortable', needs, relationships: id === 'player' ? { june: 12, leo: 5 } : { player: id === 'june' ? 12 : 5, [id === 'june' ? 'leo' : 'june']: 20 }, memories: [], activity: null, queue: [], facing: 0, speech: null, speechUntil: 0 };
 }
 export function createLifeWorld(): LifeState {
   return { id: crypto.randomUUID(), version: 0, elapsed: 0, day: 1, hour: 16, minute: 20, speed: 1, theme: 'loft', title: 'A little life', width: 12, depth: 10, provider: { ...OFFLINE_PROVIDER }, events: [],
