@@ -175,7 +175,7 @@ Deploy the updated source, then check `/api/generation/status`: it should return
 
 ## Roaming encounters
 
-Ash Raider and Cinder Sentry patrol the southern road and attack when approached. Rowan, Lunara, Clover and Foxglove wander near their homes and defend themselves when struck. Face a target and use Space, Q, E or R; combos deal stronger hits. Walls block attacks, including ranged weapon strikes. Orange wind-up rings warn of an incoming strike: move away or roll with Shift. Guard reduces damage briefly, and a potion (4) heals 40 HP with an eight-second cooldown.
+Ash Raider and Cinder Sentry patrol the southern road and attack when approached. Lunara, Clover and Foxglove wander near their homes and defend themselves when struck. Rowan is a protected quest giver: attacks cannot damage or provoke him, and he does not retaliate. Face a target and use Space, Q, E or R; combos deal stronger hits. Walls block attacks, including ranged weapon strikes. Orange wind-up rings warn of an incoming strike: move away or roll with Shift. Guard reduces damage briefly, and a potion (4) heals 40 HP with an eight-second cooldown.
 
 Characters pursue using collision-checked paths, calm down after disengagement, and yield when their health reaches zero. They recover after 18 seconds of active outdoor play. Player defeat restores health at the outpost. Menus, dialogue, hidden tabs and interiors pause outdoor combat. Combat health and actor positions reset on reload; recorded provocations and received AI dialogue remain in the journal.
 
