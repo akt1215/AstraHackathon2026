@@ -5,7 +5,9 @@ Date: 2026-09-10.
 
 ## Context and verified baseline
 
-Austin's feedback asks for deterministic commands, richer world and character state,
+The game concept and gameplay ideas in the supplied notes originate with Akito;
+Austin typed those notes. Akito's proposed changes ask for deterministic commands,
+richer world and character state,
 direct interaction, a clear initial goal, better presentation, and actions constrained
 by the character's history. This changes the current promise that any invented action
 or object is legal. The proposed promise is: **your choices shape who you become,
