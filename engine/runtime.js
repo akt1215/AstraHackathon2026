@@ -2,8 +2,9 @@ import {characterFromProfile} from '../content/characters.js';
 import {questHistory,validateQuestNovelty} from './quest-guidance.js';
 import {GENERATION_POLICY as POLICY,HOUSES,COMBOS} from '../content/game-config.js';
 import {validateContent} from './contracts.js';
+import {initialCharacterMemory,restoreCharacterMemory} from './character-memory.js';
 export const SAVE_KEY='glyph-engine-v1';
-const initial=()=>({version:1,events:[],seen:[],jobs:[],journal:[],offers:[],quests:[],activeAwakening:null,lastAwakeningEvidence:0,lastReflectionEvidence:0,profile:{heroClass:'Warrior',gear:'Ashguard armor'}});
+const initial=()=>({version:1,events:[],seen:[],jobs:[],journal:[],offers:[],quests:[],characterMemory:initialCharacterMemory(),activeAwakening:null,lastAwakeningEvidence:0,lastReflectionEvidence:0,profile:{heroClass:'Warrior',gear:'Ashguard armor'}});
 export class GameRuntime {
  constructor({storage=null,clock=()=>Date.now(),id=()=>crypto.randomUUID()}={}){
   this.storage=storage;this.clock=clock;this.id=id;this.listeners=new Set();this.state=initial();this.storageWarning='';
@@ -12,6 +13,7 @@ export class GameRuntime {
     this.state.quests=this.state.quests.filter(q=>{try{validateContent('quest',q.content,this.state.events);return true}catch{return false}});
     if(!this.state.offers.some(o=>o.id===this.state.activeAwakening&&o.status==='accepted'))this.state.activeAwakening=null;
   }}catch{this.storageWarning='Saved progress could not be read; this session started fresh.'}
+  this.state.characterMemory=restoreCharacterMemory(this.state.characterMemory,this.state.events);
  }
  subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn)}
  changed(){try{this.storage?.setItem(SAVE_KEY,JSON.stringify(this.state))}catch{this.storageWarning='Progress cannot be saved in this browser.'}this.listeners.forEach(fn=>fn(this.state))}

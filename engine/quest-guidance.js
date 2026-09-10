@@ -18,7 +18,7 @@ export function validateQuestNovelty(content,history){
  if(new Set(keys).size!==keys.length||keys.some(k=>!allowed.has(k))||!keys.some(k=>priority.has(k))||recentTitles.some(t=>t.trim().toLowerCase()===content.title.trim().toLowerCase()))throw new Error('Quest repeats recent content. Retry to request different objectives.');
  return content;
 }
-export function nextGuidance(state,position,room){
+export function nextGuidance(state,position,room,rowanPosition){
  const quest=state.quests.find(q=>q.status==='active');
  if(quest){const index=quest.completed.findIndex(done=>!done),o=quest.content.objectives[index];if(!o)return null;
   if(o.type==='perform_combo'){const combo=COMBOS.find(c=>c.id===o.target);return{title:quest.content.title,text:`${index+1}/${quest.completed.length} · ${combo.name}: ${combo.keys}. Let each move finish.`,target:null}}
@@ -32,5 +32,5 @@ export function nextGuidance(state,position,room){
  if(state.quests.some(q=>q.status==='offered'))return{title:'A new quest is ready',text:'Press T to read and accept your next task.',target:null};
  const job=state.jobs.find(j=>j.kind==='quest'&&['queued','running','failed'].includes(j.status));
  if(job)return{title:job.status==='failed'?'Next quest needs a retry':'Preparing your next quest',text:job.status==='failed'?'Press T to see the error and retry.':'Keep exploring. A new task will appear here when ready.',target:null};
- return{title:'Find your next adventure',text:'Speak to Rowan near the inn. Press F when close.',target:room?{x:400,y:421}:{x:268,y:260}};
+ return{title:'Find your next adventure',text:'Speak to Rowan near the inn. Press F when close.',target:room?{x:400,y:421}:rowanPosition?{x:rowanPosition.x,y:rowanPosition.y}:{x:268,y:260}};
 }
