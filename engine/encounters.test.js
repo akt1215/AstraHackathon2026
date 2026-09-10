@@ -24,3 +24,16 @@ test('Rowan ignores every weapon and combo without damage, retaliation or AI req
   g.hit(rowan,999);assert.equal(rowan.hp,rowan.maxHp);assert.equal(requests,1);
  }
 });
+
+test('world sleep suspends combat and committed following continues locally',()=>{
+ const g=setup(),p={x:185,y:100},a=g.actors[0];a.hostile=true;a.worldSleeping=true;tick(g,p,1000);assert.equal(a.x,130);assert.equal(a.attack,null);assert.equal(g.hp,g.maxHp);
+ a.worldSleeping=false;a.hostile=false;a.worldFollowing={x:185,y:100};a.nextRoam=Infinity;tick(g,p,1000);assert.ok(a.x>130);assert.ok(a.x<=185);
+});
+
+test('simulation throws enter the existing yield and recovery lifecycle once',async()=>{
+ const {WorldSimulation}=await import('./world-simulation.js');let provoked=0;const g=new Encounters({actors:[{...ACTORS[2],x:430,y:300,hp:2}],mover:free,onProvoked:()=>provoked++});
+ const player={x:400,y:300},sim=new WorldSimulation({mover:free});sim.restoreBindings({player,actors:g.actors,encounters:g});sim.sync({player,actors:g.actors,room:null,hp:g.hp});sim.state.entities.stone.location={kind:'held',actor:'player'};
+ assert.equal(sim.apply({actor:'player',intent:'Throw',ops:[{kind:'move',entity:'stone',x:460,y:300,style:'throw'}]}).ok,true);
+ assert.equal(g.actors[0].hp,0);assert.ok(g.actors[0].downUntil>0);assert.equal(g.actors[0].hostile,false);assert.equal(provoked,1);
+ const x=g.actors[0].x;tick(g,player,1000);assert.equal(g.actors[0].x,x);tick(g,player,18100);assert.equal(g.actors[0].hp,g.actors[0].maxHp);assert.equal(g.actors[0].downUntil,0);
+});

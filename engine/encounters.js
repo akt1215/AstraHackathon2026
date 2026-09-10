@@ -16,13 +16,14 @@ export class Encounters{
  step(dt,player,{active=true}={}){if(!active){this.swing=null;return;}this.time+=Math.min(50,dt);const now=this.time;this.floats=this.floats.filter(f=>f.until>now);
  if(this.swing&&!this.swing.done&&now>=this.swing.impact){this.swing.done=true;const s=this.swing;for(const a of this.actors)if(a.attackable!==false&&!a.downUntil&&inStrike(player,a,s.direction,attackStats(s.weapon,s.kind),this.mover))this.hit(a,attackStats(s.weapon,s.kind).damage)}
  for(const a of this.actors){a.walk=false;if(a.downUntil){if(now>=a.downUntil){a.downUntil=0;a.hp=a.maxHp;a.x=a.home.x;a.y=a.home.y;a.ready=now+2000;a.revision++}continue}
+ if(a.worldSleeping){a.attack=null;continue;}
  const distance=Math.hypot(a.x-player.x,a.y-player.y),strike=attackStats(a.weapon,'Heavy');
  if(a.enemy&&!a.hostile&&distance<95&&now>=a.ready&&clearReach(a,player,this.mover)){a.hostile=true;a.peaceAt=now+14000;this.say(a,'This road belongs to us!')}
  if(a.hostile&&(distance>210||now>a.peaceAt)){a.hostile=false;a.attack=null;a.revision++;a.ready=now+3500;this.say(a,a.enemy?'Run, then.':'Stay back. I am done fighting.');}
  if(a.attack){const elapsed=now-a.attack.start;if(!a.attack.hit&&elapsed>=500){a.attack.hit=true;if(now>=this.invulnerable&&inStrike(a,player,a.attack.direction,strike,this.mover)){const damage=now<this.guardUntil?3:a.enemy?13:9;this.hp=Math.max(0,this.hp-damage);this.invulnerable=now+650;this.floats.push({x:player.x,y:player.y,text:`−${damage}`,until:now+900});this.onFeedback(`${a.name} hit you for ${damage}.`)}}if(elapsed>=850)a.attack=null;continue}
  if(a.hostile&&distance<strike.range-4&&now>=a.ready){a.direction=face(a,player);a.attack={start:now,hit:false,direction:a.direction};a.ready=now+1600;continue}
  let goal=a.home;
- if(a.hostile){goal=player;if(distance<strike.range-10)continue}else{if(now>a.nextRoam){a.nextRoam=now+3500;const phase=Math.floor(now/3500)+this.actors.indexOf(a);a.roam={x:a.home.x+Math.cos(phase*1.7)*24,y:a.home.y+Math.sin(phase*1.7)*18}}goal=a.roam||a.home}
+ if(a.hostile){goal=player;if(distance<strike.range-10)continue}else if(a.worldFollowing){goal=a.worldFollowing;if(Math.hypot(a.x-goal.x,a.y-goal.y)<36)continue}else if(a.worldAttention){a.direction=face(a,a.worldAttention);continue}else{if(now>a.nextRoam){a.nextRoam=now+3500;const phase=Math.floor(now/3500)+this.actors.indexOf(a);a.roam={x:a.home.x+Math.cos(phase*1.7)*24,y:a.home.y+Math.sin(phase*1.7)*18}}goal=a.roam||a.home}
  if(!a.pathAt||now>a.pathAt){a.waypoint=waypoint(a,goal,this.mover);a.pathAt=now+400}
  const target=a.waypoint||goal,dx=target.x-a.x,dy=target.y-a.y,d=Math.hypot(dx,dy);if(d>1){const step=Math.min(d,Math.min(50,dt)*(a.hostile?.055:.022)),p=this.mover(a,dx/d*step,dy/d*step);a.direction=face(a,target);a.walk=p.x!==a.x||p.y!==a.y;a.x=p.x;a.y=p.y}
  }
