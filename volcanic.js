@@ -1,3 +1,5 @@
+import {attackPose} from './engine/attack-pose.js';
+import {drawHeldWeapon,drawWeaponAction} from './engine/weapon-renderer.js';
 import {drawSwing} from './combat-visuals.js';
 import {houses,magmaBank,obstacles,addObstacle} from './world.js';
 // Original procedural pixel art, with layered materials and emissive lighting.
@@ -35,9 +37,11 @@ R(c,344,75,48,18,'#182324');R(c,344,75,48,1,'#977957');c.font='11px VT323';c.tex
 for(let i=0;i<350;i++){let x=rand()*800,y=rand()*600;R(c,x,y,1,1,'#a49a7555')}for(let y=0;y<600;y+=100)light(c,647,y,145,.19);
 }
 export function drawHero(c,x,y,color,scale=1,name='',blade=false,pose={}){
- const role=pose.role||'Warrior',direction=pose.direction||'down',walking=pose.walking||false;
+ const custom=pose.custom;const role=pose.role||'Warrior',direction=pose.direction||'down',walking=pose.walking||false;
+ if(custom)color=custom.outfitColor;
  const step=walking?Math.sin(performance.now()/85):0, stride=Math.round(step*3),bob=walking?Math.round(Math.abs(step)):0;
- const attacking=typeof pose.attack==='number';
+ const attacking=typeof pose.attack==='number'&&pose.attack>=0&&pose.attack<1;
+ const bodyPose=attackPose(pose.attack,custom?.weapon||(role==='Mage'||role==='Healer'?'staff':'sword'),pose.kind,direction);
  const side=direction==='left'||direction==='right',back=direction==='up';
  c.save();c.translate(Math.round(x),Math.round(y));c.scale(scale,scale);
  c.fillStyle='#08171980';c.beginPath();c.ellipse(0,13,11,3,0,0,Math.PI*2);c.fill();
@@ -45,32 +49,42 @@ export function drawHero(c,x,y,color,scale=1,name='',blade=false,pose={}){
  if(direction==='left')c.scale(-1,1);
  // Separate boots and bent legs, with daylight between the silhouette.
  for(const [lx,offset] of [[-5,stride],[2,-stride]]){R(c,lx,1,4,8,'#293539');R(c,lx+1,3,2,5,'#58615a');R(c,lx,7+offset,4,5,'#332c29');R(c,lx-1,11+offset,6,2,'#111e22');R(c,lx,10+offset,4,1,'#a08760')}
- c.translate(attacking?Math.round(Math.sin(pose.attack*Math.PI)*2):0,-bob);
+ c.translate(Math.round(bodyPose.x),Math.round(bodyPose.y)-bob);c.rotate(bodyPose.tilt);
  // Split cloak tails taper outward; the hem responds to each step.
- poly(c,[[-6,-17],[5,-17],[8+stride,7],[3,5],[0,8],[-8+stride,5]],'#18272d');
+ poly(c,[[-6,-17],[5,-17],[8+stride+bodyPose.cape,7],[3,5],[0,8],[-8+stride+bodyPose.cape,5]],'#18272d');
  poly(c,[[-5,-16],[-2,-12],[-3+stride,4],[-7+stride,5]],color);
- if(role==='Mage'||role==='Healer'){poly(c,[[-5,-9],[5,-9],[8,9],[2,7],[0,10],[-7,8]],color);R(c,-4,-4,1,11,'#d1b57a');R(c,4,1,1,6,'#182b30')}
+ if(custom?custom.clothing==='Robe':role==='Mage'||role==='Healer'){poly(c,[[-5,-9],[5,-9],[8,9],[2,7],[0,10],[-7,8]],color);R(c,-4,-4,1,11,'#d1b57a');R(c,4,1,1,6,'#182b30')}
  // Narrow waist, angled shoulders, curved cuirass and exposed neck.
  const torso=['...ooo...','..ohhho..','.ohhhmmo.','ohhhmmmmo','ommmmmmoo','.ommmmoo.','..ommoo..','..ogggo..','..ogbgo..','..ooooo..'];
- const palette={o:'#17262b',h:'#d2c8a3',m:role==='Warrior'?'#7e9390':color,g:'#78583b',b:'#efc176'};
+ const palette={o:'#17262b',h:'#d2c8a3',m:(custom?custom.clothing==='Armor':role==='Warrior')?'#7e9390':color,g:'#78583b',b:'#efc176'};
  torso.forEach((row,yy)=>[...row].forEach((p,xx)=>{if(p!=='.')R(c,xx-4,yy-16,1,1,palette[p])}));
- R(c,-2,-19,4,4,'#c28b63');R(c,-1,-19,2,3,'#e8b780');
+ R(c,-2,-19,4,4,custom?.skinColor||'#c28b63');R(c,-1,-19,2,3,custom?.skinColor||'#e8b780');
  // Articulated upper arms, bracers and hands rather than square shoulder pads.
- for(const [ax,arm] of [[-8,-stride],[6,stride]]){R(c,ax,-14+arm,3,5,color);R(c,ax,-14+arm,3,1,'#b3b49b');R(c,ax+1,-9+arm,2,4,'#424e4c');R(c,ax+1,-5+arm,2,3,'#d4a375')}
+ for(const [ax,arm] of [[-8,-stride+bodyPose.left],[6,stride+bodyPose.right]]){R(c,ax,-14+arm,3,5,color);R(c,ax,-14+arm,3,1,'#b3b49b');R(c,ax+1,-9+arm,2,4,'#424e4c');R(c,ax+1,-5+arm,2,3,custom?.skinColor||'#d4a375')}
  // Rounded pixel head: hair, brow, eyes, cheek shadow and a visible jaw.
  const face=back?['...hhhh...','..hHHHhh..','.hHHHHHhh.','.hHHHHHhh.','hhHHHHhhh.','.hhhhhhh..','..hhhhh...','...hhh....']:side?['...hhhh...','..hHHHhh..','.hHHHss...','.hHHsssss.','.hhHsos...','..hHssss..','...hsss...','....ss....']:['...hhhh...','..hHHHhh..','.hHHHHhhh.','.hHsssssh.','.hhsoossh.','..hsssssh.','...sssss..','....sss...'];
- const hair=role==='Healer'?'#c0c4b2':role==='Mage'?'#a4b2ad':'#604633';
- const headColors={h:'#293031',H:hair,s:'#e4b47e',o:'#203138'};
+ const hair=custom?.hairColor||(role==='Healer'?'#c0c4b2':role==='Mage'?'#a4b2ad':'#604633');
+ const headColors={h:'#293031',H:hair,s:custom?.skinColor||'#e4b47e',o:'#203138'};
  face.forEach((row,yy)=>[...row].forEach((p,xx)=>{if(p!=='.')R(c,xx-5,yy-27,1,1,headColors[p])}));
  if(!back){R(c,-3,-20,1,2,'#b47c59');if(!side){R(c,-2,-23,1,1,'#f4d5a0');R(c,2,-23,1,1,'#f4d5a0')}}
- if(role==='Warrior'){R(c,-5,-25,2,5,'#8da3a0');R(c,4,-25,2,5,'#617d7c');R(c,-4,-26,8,1,'#d1cba8');R(c,-1,-28,3,2,color)}
- if(role==='Rogue'){R(c,-5,-26,10,2,color);R(c,-7,-25,3,2,color);R(c,-8,-24,2,4,color)}
- if(role==='Mage'){poly(c,[[-7,-26],[-3,-30],[0,-37],[3,-31],[4,-27],[7,-26]],'#23333a');poly(c,[[-5,-27],[-1,-31],[0,-35],[2,-29],[5,-27]],color);R(c,-6,-27,12,1,'#c6ad6f')}
+ if(!custom&&role==='Warrior'){R(c,-5,-25,2,5,'#8da3a0');R(c,4,-25,2,5,'#617d7c');R(c,-4,-26,8,1,'#d1cba8');R(c,-1,-28,3,2,color)}
+ if(!custom&&role==='Rogue'){R(c,-5,-26,10,2,color);R(c,-7,-25,3,2,color);R(c,-8,-24,2,4,color)}
+ if(!custom&&role==='Mage'){poly(c,[[-7,-26],[-3,-30],[0,-37],[3,-31],[4,-27],[7,-26]],'#23333a');poly(c,[[-5,-27],[-1,-31],[0,-35],[2,-29],[5,-27]],color);R(c,-6,-27,12,1,'#c6ad6f')}
+ if(custom){
+  if(custom.hairStyle==='Bald'){R(c,-3,-26,6,3,custom.skinColor);R(c,-4,-24,8,2,custom.skinColor)}
+  if(custom.hairStyle==='Cropped'){R(c,-4,-27,8,2,hair)}
+  if(custom.hairStyle==='Swept'){R(c,-5,-28,9,2,hair);R(c,-6,-27,4,4,hair);R(c,1,-26,4,2,hair)}
+  if(custom.hairStyle==='Curls'){for(let i=0;i<4;i++){R(c,-6+i*3,-28-(i%2),3,3,hair)}R(c,-6,-25,3,4,hair);R(c,4,-25,3,4,hair)}
+  if(custom.hairStyle==='Braid'){R(c,-4,-27,8,2,hair);for(let i=0;i<6;i++)R(c,5+(i%2),-23+i*2,3,3,hair)}
+  if(custom.clothing==='Coat'){R(c,-6,-9,3,14,color);R(c,4,-9,3,14,color);R(c,-4,-9,1,12,'#d1b47b')}
+  if(custom.clothing==='Tunic'){R(c,-5,-6,10,7,color);R(c,-5,-1,10,2,'#ac8959')}
+ }
  // Weapons distinguish classes at a glance; the sword is angled away from the body.
- if(!attacking&&(role==='Mage'||role==='Healer')){R(c,11,-23,2,34,'#815d3a');R(c,11,-22,1,32,'#c29c64');R(c,9,-27,6,5,'#263c40');R(c,10,-29,4,7,role==='Mage'?'#80ccd4':'#d9df9b');R(c,11,-28,2,3,'#f3ebc9');if(role==='Healer')R(c,7,-25,10,2,'#d7bd78')}
+ if(!attacking&&custom&&drawHeldWeapon(c,custom.weapon)){}
+ else if(!attacking&&!custom&&(role==='Mage'||role==='Healer')){R(c,11,-23,2,34,'#815d3a');R(c,11,-22,1,32,'#c29c64');R(c,9,-27,6,5,'#263c40');R(c,10,-29,4,7,role==='Mage'?'#80ccd4':'#d9df9b');R(c,11,-28,2,3,'#f3ebc9');if(role==='Healer')R(c,7,-25,10,2,'#d7bd78')}
  else if(!attacking){for(let i=0;i<17;i++){R(c,12+Math.floor(i/4),2-i+stride,2,2,blade?'#ffe2a0':'#aabcb8');R(c,13+Math.floor(i/4),2-i+stride,1,1,'#eef0d1')}R(c,10,3+stride,7,2,'#c89b57');R(c,12,5+stride,2,5,'#765038')}
  if(back){poly(c,[[-5,-17],[4,-17],[6+stride,5],[0,8],[-7+stride,5]],color);R(c,-4,-15,1,14,'#ce9f63');R(c,2,-13,1,15,'#26343a')}
- if(attacking)drawSwing(c,pose.attack,direction,blade,pose.kind);
+ if(attacking&&!drawWeaponAction(c,pose.attack,direction,custom?.weapon||(role==='Mage'||role==='Healer'?'staff':'sword'),pose.kind))drawSwing(c,pose.attack,direction,blade,pose.kind);
  c.restore();
  if(name){c.font='12px VT323';c.textAlign='center';let w=c.measureText(name).width+14;R(c,x-w/2,y-48,w,16,'#122024dc');R(c,x-w/2,y-48,w,1,'#877653');c.fillStyle='#eddbac';c.fillText(name,x,y-36)}
 }

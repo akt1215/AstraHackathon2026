@@ -1,3 +1,4 @@
+import {HAIRSTYLES,CLOTHES,WEAPONS} from '../content/characters.js';
 const str=(maxLength=240)=>({type:'string',minLength:1,maxLength});
 const num=(minimum,maximum)=>({type:'integer',minimum,maximum});
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
@@ -7,6 +8,8 @@ const pixel=obj({x:num(-48,48),y:num(-52,30),w:num(1,16),h:num(1,16),color});
 const effect=obj({shape:{type:'string',enum:['ring','ray','orbit']},color,radius:num(8,60),count:num(4,24),rotation:num(-6,6)});
 const sourceEventIds=list(str(100),20);
 export const SCHEMAS={
+ character:obj({name:str(24),heroClass:{type:'string',enum:['Warrior','Mage','Rogue','Healer']},hairStyle:{type:'string',enum:HAIRSTYLES},hairColor:color,skinColor:color,clothing:{type:'string',enum:CLOTHES},outfitColor:color,weapon:{type:'string',enum:Object.keys(WEAPONS)},bio:str(300),characterArt:list(pixel,48,0)}),
+ name:obj({name:str(24)}),
  awakening:obj({name:str(60),description:str(500),reason:str(400),tradeoff:str(250),sourceEventIds,appearance:list(pixel,96),skill:obj({name:str(60),description:str(250),durationMs:num(400,1400),cooldownMs:num(1500,8000),effects:list(effect,4)})}),
  quest:obj({title:str(70),description:str(500),sourceEventIds,objectives:list(obj({type:{type:'string',enum:['visit_room','perform_combo']},target:{type:'string',enum:['inn','smith','home','Cleave','Cyclone','Breaker']},description:str(160)}),3)}),
  journal:obj({title:str(70),summary:str(700),sourceEventIds})
@@ -21,7 +24,7 @@ export function matches(schema,value){
 export function validateContent(kind,value,events){
  if(!SCHEMAS[kind]||!matches(SCHEMAS[kind],value))throw new Error('Generated content does not match the engine contract.');
  const allowed=new Set(events.map(e=>e.id));
- if(value.sourceEventIds.some(id=>!allowed.has(id)))throw new Error('Generated content cites unknown events.');
+ if((value.sourceEventIds||[]).some(id=>!allowed.has(id)))throw new Error('Generated content cites unknown events.');
  if(kind==='quest'&&value.objectives.some(o=>!(o.type==='visit_room'?['inn','smith','home']:['Cleave','Cyclone','Breaker']).includes(o.target)))throw new Error('Quest objective cannot be executed.');
  if(kind==='awakening'&&value.skill.cooldownMs<value.skill.durationMs+300)throw new Error('Skill recovery budget exceeded.');
  return value;

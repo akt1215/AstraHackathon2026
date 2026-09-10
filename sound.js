@@ -52,6 +52,9 @@ export function playSound(name) {
   if (now - (lastPlayed.get(name) ?? -Infinity) < cooldown) return;
   lastPlayed.set(name, now);
   switch (name) {
+    case 'Arrow': noise(.1,3000,.18,0,800);tone(700,.07,0,'sine',.12,250);break;
+    case 'ArrowHeavy': noise(.2,1500,.14);noise(.19,3500,.3,.3,600);break;
+    case 'Volley': [0,.12,.24].forEach(d=>noise(.12,3000,.2,d,700));break;
     case 'Cleave': noise(.4,2600,.5,.25,150);tone(130,.45,.25,'sawtooth',.18,35);tone(660,.2,.05);break;
     case 'Cyclone': [0,.18,.36,.54].forEach(d=>noise(.22,2800,.3,d,450));tone(440,.6,0,'triangle',.16,880);break;
     case 'Breaker': tone(180,.25,0,'triangle',.3,60);noise(.24,3600,.4,.2,800);[660,990].forEach(f=>tone(f,.3,.2,'sine',.15));break;

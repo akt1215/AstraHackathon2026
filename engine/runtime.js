@@ -1,3 +1,4 @@
+import {characterFromProfile} from '../content/characters.js';
 import {questHistory,validateQuestNovelty} from './quest-guidance.js';
 import {GENERATION_POLICY as POLICY,HOUSES,COMBOS} from '../content/game-config.js';
 import {validateContent} from './contracts.js';
@@ -6,7 +7,7 @@ const initial=()=>({version:1,events:[],seen:[],jobs:[],journal:[],offers:[],que
 export class GameRuntime {
  constructor({storage=null,clock=()=>Date.now(),id=()=>crypto.randomUUID()}={}){
   this.storage=storage;this.clock=clock;this.id=id;this.listeners=new Set();this.state=initial();this.storageWarning='';
-  try{const saved=JSON.parse(storage?.getItem(SAVE_KEY)||'null');if(saved?.version===1&&['events','seen','jobs','journal','offers','quests'].every(k=>Array.isArray(saved[k]))){this.state={...initial(),...saved};this.state.jobs.forEach(j=>{if(j.status==='running')j.status='failed'});
+  try{const saved=JSON.parse(storage?.getItem(SAVE_KEY)||'null');if(saved?.version===1&&['events','seen','jobs','journal','offers','quests'].every(k=>Array.isArray(saved[k]))){this.state={...initial(),...saved};const candidate=characterFromProfile(this.state.profile);const fields=['name','heroClass','hairStyle','hairColor','skinColor','clothing','outfitColor','weapon','bio','characterArt'];try{validateContent('character',Object.fromEntries(fields.map(k=>[k,candidate[k]])),[])}catch{this.state.profile={...initial().profile,onboarded:false}};this.state.jobs.forEach(j=>{if(j.status==='running')j.status='failed'});
     this.state.offers=this.state.offers.filter(o=>{try{validateContent('awakening',o.content,this.state.events);return true}catch{return false}});
     this.state.quests=this.state.quests.filter(q=>{try{validateContent('quest',q.content,this.state.events);return true}catch{return false}});
     if(!this.state.offers.some(o=>o.id===this.state.activeAwakening&&o.status==='accepted'))this.state.activeAwakening=null;
@@ -14,6 +15,7 @@ export class GameRuntime {
  }
  subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn)}
  changed(){try{this.storage?.setItem(SAVE_KEY,JSON.stringify(this.state))}catch{this.storageWarning='Progress cannot be saved in this browser.'}this.listeners.forEach(fn=>fn(this.state))}
+ finishCharacter(profile){validateContent('character',profile,[]);this.state.profile={...this.state.profile,...profile,onboarded:true};this.changed()}
  setProfile(profile){this.state.profile={...this.state.profile,...profile};this.changed()}
  enqueue(kind,key,events){if(this.state.jobs.some(j=>j.key===key)||this.state.jobs.length>=POLICY.maxJobs)return;this.state.jobs.push({id:this.id(),kind,key,eventIds:events.slice(-20).map(e=>e.id),status:'queued',error:null,...(kind==='quest'?{questHistory:questHistory(this.state.quests)}:{})});}
  record(type,target,label,{unique=false}={}){

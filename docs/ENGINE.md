@@ -57,3 +57,24 @@ Quest requests now snapshot the last eight quest titles, statuses, and objective
 Completing a quest automatically queues exactly one follow-up. New quests remain offers until accepted. Active/offered quests sort before history. A live tracker shows the current objective, compass bearing to its doorway, or exact combo keys. A marker identifies the destination; bearings are guidance, not pathfinding through obstacles. Players with an existing repetitive quest can choose “Request a different task”; their old quest is retained as replaced history.
 
 The current world still has three room targets and three combo targets. This prevents immediate repetition but is not an unlimited quest vocabulary. More mechanics and locations must be added to expand actual gameplay variety.
+
+## Character onboarding
+
+The first visit after this feature is installed opens a draft character creator; existing quests, events, and awakenings remain intact. Choose a name, class, one of five hair silhouettes, hair/skin/clothing colors, one of four outfits, and sword/spear/bow/staff. Save enters the game. C reopens the creator; closing an edit discards it. Completed profiles reload without onboarding. Invalid saved character content falls back to an unfinished profile instead of rendering unchecked data.
+
+`content/characters.js` defines supported cosmetics and weapon starter moves. Character appearance is shared by the creator, overworld, and awakening preview. Equipment selection updates the corresponding outfit or weapon. Classes and weapons are independent.
+
+The creator has three explicit API actions: generate a name, generate from a description, and generate a random character. Each uses the existing server-only generation endpoint and budget; no request happens just from changing colors or typing. `character` and `name` use separate strict response contracts. The AI can choose supported features and generate custom bounded pixel attachments; it cannot introduce an unimplemented weapon type or executable code. A typed name is retained when generating the rest of a character. AI name generation explicitly replaces the draft name. All generated content remains a draft until saved. Closing cancels the client wait; an upstream call already sent may still incur cost. Errors leave the previous draft editable.
+
+Weapon slots keep the existing keyboard controls and combo sequences, but their labels, timings, held sprites, attack animations, and sounds differ:
+
+| Weapon | Space / 1 | Q | E | R |
+| --- | --- | --- | --- | --- |
+| Sword | Quick cut | Heavy cleave | Whirlwind | Shield bash |
+| Spear | Jab | Piercing thrust | Sweeping pole | Shaft parry |
+| Bow | Quick shot | Charged arrow | Fan volley | Bow strike |
+| Staff | Spark bolt | Arcane nova | Orbiting sparks | Runic ward |
+
+Shift remains a collision-aware dodge for every weapon. Existing combo achievement IDs remain stable so active quests survive weapon changes; the combo guide lists the current weapon's input names. Projectile/attack effects are still visual previews, not damage/hit simulation. Authored weapon move sets are distinct from generated awakening skills.
+
+Weapon animation follow-up: body poses now vary through wind-up, release, and recovery, including bowstring draw/release, staff lifts, and directional melee lunges. Battle previews have independent actor animation state and redraw across the action; the player uses their saved appearance/weapon, and the healer casts with a staff. Damage/healing numbers float during those animations. Browser verification compared successive player and healer canvas frames; regression tests cover time-varying poses for each weapon and action.

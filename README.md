@@ -1,56 +1,161 @@
-# Glyph RPG — visual prototype
+# Tilth
 
-Run `npm install` and `npm run dev`, then open http://localhost:5173.
+A 2D pixel-art RPG prototype where exploration and learned techniques can lead to AI-generated quests, character changes, and optional awakenings.
 
-A responsive pixel village with keyboard and touch movement, sample character classes, equipment previews, a quest journal, and a staged boss encounter. All art is drawn in Canvas. UI fonts load from Google Fonts with local fallbacks.
+The current build takes place in **Cinderwatch**, a volcanic outpost with magma rivers, stone buildings, a forge, and furnished interiors. It runs in the browser with keyboard and touch controls. The full-screen world, menus, and character art use a retro pixel style with richer shading and lighting.
 
-This stops at the visual prototype. There is no multiplayer, persistence, production combat, or complete progression system. Refreshing resets the preview.
+## What you can do now
 
-Validation: `npm run build`. Browser checks covered inventory selection, equipment changes, battle feedback, and desktop/mobile overflow.
+### Create your character
 
-## Immersive layout
+- Choose a name and class: Warrior, Mage, Rogue, or Healer.
+- Pick from five hairstyles, hair colors, skin tones, four clothing styles, and outfit colors.
+- Choose a sword, spear, bow, or staff independently of class.
+- Preview your appearance and weapon move set before entering the world.
+- Ask AI for a name, describe a new character, or generate a random character with custom pixel details.
+- Edit any generated draft before saving. Typed names are preserved unless you explicitly generate a new name.
+- Reopen the creator later without resetting your quest or journal history.
 
-The game fills the viewport. All panels open over the world in pixel-bordered menus.
+### Explore the outpost
 
-- WASD / arrow keys: move
-- Esc: open menu, return to menu, or resume
-- I: bag; C: character; J: journal; P: party; B: battle preview
-- 1–4: skill previews
-- Arrow keys + Enter: navigate the main menu
-- Mobile: on-screen movement pad and Menu button
+- Walk and dodge through a world with collision for buildings, rocks, fences, furniture, and magma.
+- Cross the stone bridge and enter three furnished buildings: the Ember Rest, Cinderwatch Smithy, and Watchkeeper’s House.
+- Follow the quest tracker’s compass directions and destination markers.
+- Use the in-game inventory, party preview, journal, quest panel, and awakening menu.
+- Hear footsteps, menu interactions, equipment sounds, attacks, casting, and combo finishers. The sound toggle remembers your preference.
 
-The map crops to fill the screen without stretching its pixel art and follows the character within the village bounds.
+### Try weapon moves and combos
 
-## Volcanic visual study
+Each weapon has distinct held art, action poses, effects, timings, and sounds. Animations include directional strikes, bowstring draw/release, staff casting, and a collision-aware dodge roll.
 
-Cinderwatch replaces the green village with detailed basalt masonry, magma flows, a stone bridge, forge lighting, armored sprites, and drifting embers. The charcoal-and-brass menus stay inside the game. Original procedural art lives in `volcanic.js`.
+| Weapon | Space / 1 | Q | E | R |
+| --- | --- | --- | --- | --- |
+| Sword | Quick cut | Heavy cleave | Whirlwind | Shield bash |
+| Spear | Jab | Piercing thrust | Sweeping pole | Shaft parry |
+| Bow | Quick shot | Charged arrow | Fan volley | Bow strike |
+| Staff | Spark bolt | Arcane nova | Orbiting sparks | Runic ward |
 
-“32-bit” describes the richer era-inspired art direction, not a hardware bit-depth switch. Ambient effects run at a capped rate and respect reduced-motion preferences. This remains a visual prototype; the earlier green version is preserved in commit `7e863b4`.
+Three sequences trigger special finishers:
 
-Sword swings: press Space or 1, or tap the sword skill. A directional 420 ms wind-up/cut/recovery animation briefly plants the character's feet, with a 500 ms cooldown and a pixel slash trail. This is a visual attack; enemy hit detection and damage are not implemented.
+| Combo | Inputs |
+| --- | --- |
+| Cinder Cleave | Space → Space → Q |
+| Ash Cyclone | Shift → Space → E |
+| Forge Breaker | R → Q → Space |
 
-Additional action previews:
-- Shift: dodge roll (movement respects world and furniture collision)
-- Q: heavy strike
-- E: whirlwind
-- R: shield bash
+Let each action finish, then start the next within **1.6 seconds**. Cooldown-blocked inputs do not count. The combo guide displays the selected weapon’s move names, and the HUD tracks sequence progress.
 
-Each has a touch button, its own sound, and a visible cooldown. Actions cannot interrupt one another. These are movement and combat animations; enemy damage remains outside the prototype.
+A staged boss battle also previews the customized player attacking and a healer casting, with floating combat indicators. **Overworld combat and generated skills are visual previews; projectile hit detection, real PvP, and a complete damage system are not implemented.**
 
-Combos (K opens the in-game guide):
-- Cinder Cleave: Slash → Slash → Heavy (Space, Space, Q)
-- Ash Cyclone: Dodge → Slash → Spin (Shift, Space, E)
-- Forge Breaker: Bash → Heavy → Slash (R, Q, Space)
+### Receive AI-generated content
 
-Let each action finish and start the next within 1.6 seconds of its end. Only successfully started skills count; cooldown-blocked inputs are ignored. A correct final skill becomes a special animated finisher. The HUD shows sequence progress. Touch controls use the same recipes.
+The server requests structured content from the OpenAI Responses API. Results are validated as data; generated JavaScript is never executed.
 
-## Event-driven engine and awakening offers
+| Content | Trigger |
+| --- | --- |
+| Character or name | Explicit creator button: description, random character, or name |
+| First quest | Speak to Rowan near the inn |
+| Follow-up quest | Complete the current quest; one new request is queued automatically |
+| Replacement quest | Choose “Request a different task” on an offered or active quest |
+| Awakening offer | Three distinct meaningful events since the previous evaluation, with no unresolved offer/job |
+| Journal reflection | Six new meaningful events, summarized in a batch |
 
-See [engine design and API timing](docs/ENGINE.md). Authored content is extracted into `content/game-config.js`; the runtime records discoveries and learned combos, saves a factual journal, tracks quests, and queues milestone generation.
+Meaningful events currently include first house discoveries, first combo achievements, and quest completion. Ordinary movement and opening the journal do not call the API. Repeated discoveries do not farm awakening progress.
 
-- U / Awakenings: inspect pending offers, accept, decline, or decide later.
-- F / Talk: ask Rowan near the inn for a quest.
-- T: quests. J: recorded journal.
-- 5: use the accepted awakening's generated visual skill.
+Quests use supported room visits and combo objectives. The generator receives recent objective history, excludes the immediately previous objectives, and prioritizes less-used activities. Repeated objectives are rejected even when the title changes. New quests must be accepted before their objectives count.
 
-AI requires server-only `OPENAI_API_KEY` and `OPENAI_MODEL` in `.env` (see `.env.example`) and a dev-server restart. Without configuration, progress is saved but generation remains disconnected. Once configured, queued work runs automatically. No API key or generated executable code is sent to the browser. This is a local engine foundation, not a production multiplayer backend.
+Awakenings are **offers**: preview the appearance and skill, then accept, decline, or decide later. Accepting replaces the active awakening; declining preserves it. Generated appearance and skill definitions are saved and reused without another API call each time they render or activate.
+
+## Run locally
+
+Use Node.js 20.19+ or 22.12+.
+
+```sh
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173/**. The authored world, creator, and combat previews work without an API key.
+
+For AI generation, copy `.env.example` to `.env` if you do not already have one:
+
+```sh
+cp .env.example .env
+```
+
+Then configure:
+
+```env
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.6-terra
+OPENAI_MAX_GENERATIONS=20
+```
+
+Restart the dev server after configuring it. The model must be available to your account and support Responses API Structured Outputs. Reasoning effort is currently left at the model default.
+
+`.env` is Git-ignored. Credentials stay in server-side development middleware; never add a `VITE_` prefix to the API key. Configured milestone jobs run automatically and incur API usage. The default limit is 20 upstream attempts per server process, including failed attempts. Failed generation is shown in the interface and can be retried explicitly.
+
+## Controls
+
+| Input | Action |
+| --- | --- |
+| WASD / arrow keys | Move |
+| Space / 1, Q, E, R | Selected weapon’s attacks |
+| Shift | Dodge roll |
+| 2 / 3 / 4 | Guard, rally, and potion visual previews |
+| 5 | Activate an accepted awakening’s visual skill; keyboard shortcut only |
+| Esc | Open the menu, return to it, or resume |
+| C | Create/edit character |
+| I | Inventory |
+| J | Journal |
+| P | Party preview |
+| B | Staged boss battle |
+| K | Combo guide |
+| F | Talk to Rowan when nearby |
+| T | Quests |
+| U | Awakenings |
+
+On mobile, use the movement pad, skill buttons, Talk button, and in-game menu. Movement shortcuts sit at the top-left; the quest tracker sits along the top on desktop. The standalone awakening-skill button has been removed.
+
+## Saved progress
+
+Character choices, gear selection, discoveries, learned combos, journal history, quests, generation jobs, and awakening decisions persist in this browser’s `localStorage`. Sound preference is stored separately.
+
+Refreshing returns the character to the outpost rather than restoring a position inside potentially changed geometry. Active animations and the staged battle reset. Saves are local to the browser and are not synced between devices.
+
+## Engine structure
+
+| Path | Responsibility |
+| --- | --- |
+| `content/` | Authored world, character, weapon, skill, and combo definitions |
+| `engine/runtime.js` | Persistent state, factual events, quest progress, and awakening decisions |
+| `engine/contracts.js` | Shared generation schemas and validation |
+| `engine/generation.js` | Asynchronous generation queue |
+| `engine/onboarding.js` | Draft character creator and explicit AI requests |
+| `engine/quest-guidance.js` | Quest diversity checks and next-objective guidance |
+| `engine/*renderer.js`, `engine/attack-pose.js` | Generated visuals, weapon effects, and body animation |
+| `server/generation-api.js` | Server-only OpenAI adapter, validation, caching, and request budgets |
+| `world.js`, `interiors.js`, `volcanic.js` | Collision, rooms, and procedural pixel artwork |
+| `main.js` | Input, scene, HUD, and battle integration |
+
+See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, and architectural boundaries.
+
+## Current limits
+
+- No multiplayer, accounts, server-authoritative gameplay, or cloud saves.
+- No actual assistance/hostility encounters or good/evil progression yet. The AI does not infer morality from exploration or practice.
+- Quest variety is bounded by three rooms and three combos; new quest titles do not create new playable locations or mechanics.
+- AI character generation selects supported features and may add custom pixel details. Weapon starter moves are authored, not invented by the LLM.
+- Appearance attachments use bounded pixel rectangles; generated awakening skills use supported visual primitives.
+- Class progression, functional stat effects, a complete equipment system, and full combat remain unfinished.
+- The generation endpoint runs in Vite’s development server. `dist` is a static frontend and does not include a production API backend.
+- Request caching and API budgets are process-local. A production multiplayer release needs authentication, authoritative events, and durable server storage.
+
+## Verification
+
+```sh
+npm test
+npm run build
+```
+
+The 35 automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
