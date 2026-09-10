@@ -9,7 +9,7 @@ width/height provided by state. Local Node API, vanilla TypeScript/Vite client, 
 validation. Server is authoritative; UI never sends arbitrary NPC actions.
 
 API: GET /api/state -> {state: PublicState, provider: ProviderInfo}; POST /api/action ->
-body {requestId:string,version:number,input?:string,direct?:DirectIntent}; response
+body {worldId:string,requestId:string,version:number,input?:string,direct?:DirectIntent}; response
 ActionResponse, or {error:string,state?:PublicState}. POST /api/new -> {variant?:
 'baseline'|'tired'|'asleep'} -> {state,provider}. POST /api/save -> {ok:true}.
 Direct and text intents run identical engine actions and NPC cadence. No text keyword
