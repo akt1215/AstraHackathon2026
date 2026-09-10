@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { createWorld, resolveAction, beginTick, finishTick, actorView, publicState, directAction, fallbackAction } from '../shared/engine';
 import type { World, ModelResult, ActorView, ProviderInfo, DirectIntent, ActionResponse, PublicState, WorldEvent } from '../shared/types';
 import { SessionStore } from './store';
+import { initializeAwareness, scheduleReactions, followAction, acknowledgeCondition } from './reactions';
 
 export interface Runtime {
   info(): ProviderInfo;
@@ -17,7 +18,7 @@ export class Coordinator {
   private store: SessionStore;
   constructor(path:string,private runtime:Runtime) {
     this.store=new SessionStore(path);
-    this.world=this.store.load() ?? createWorld();
+    this.world=initializeAwareness(this.store.load() ?? createWorld());
     this.store.save(this.world);
   }
   state():PublicState {return publicState(this.world,this.busy);}
@@ -26,7 +27,7 @@ export class Coordinator {
   save():void {this.store.save(this.world);}
   newWorld(variant:'baseline'|'tired'|'asleep'='baseline'):PublicState {
     if(this.busy) throw new RequestError('The current action is still resolving.',409);
-    this.commit(createWorld(variant)); return this.state();
+    this.commit(initializeAwareness(createWorld(variant))); return this.state();
   }
   async recover():Promise<void> {
     if(!this.world.phase || this.world.phase.finalized || this.busy) return;
@@ -58,7 +59,15 @@ export class Coordinator {
       if(action.actor!=='player') throw new RequestError('That interpretation tried to control another character. Please rephrase.');
       const result=resolveAction(this.world,action);
       if(!result.ok) return {ok:false,state:publicState(this.world,false),message:result.reason ?? 'That action cannot happen here.',source,timing:{interpretationMs,reactionMs:0,totalMs:Math.round(performance.now()-start)},events:[]};
-      const next=beginTick(result.world);
+      const walking=action.ops.every(op=>op.kind==='move'&&op.entity==='player'&&(op.style==='walk'||op.style==='approach'));
+      let next=scheduleReactions(beginTick(result.world),walking);
+      if(walking){
+        for(const actor of Object.values(next.actors)){
+          if(actor.role!=='npc'||next.phase!.slots.includes(actor.id))continue;
+          const follow=followAction(next,actor.id);
+          if(follow){const step=resolveAction(next,follow);if(step.ok)next=step.world;}
+        }
+      }
       next.receipts={...next.receipts,[req.requestId]:{ok:true,version:next.version}};
       this.commit(next);
       const reactionStart=performance.now();
@@ -109,6 +118,7 @@ export class Coordinator {
       const next=resolved.ok ? resolved.world : structuredClone(this.world);
       if(fallback) {usedFallback=true;next.phase!.plans![id].fallback=true;}
       next.phase!.completed.push(id);
+      acknowledgeCondition(next,id);
       this.commit(next);
     }
     this.commit(finishTick(this.world));

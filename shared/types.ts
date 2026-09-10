@@ -26,7 +26,9 @@ export type Primitive = MoveOp | TransferOp | TransformOp | EmoteOp;
 export interface Action { actor: string; intent: string; ops: Primitive[]; }
 export interface Resolution { ok: boolean; world: World; events: WorldEvent[]; reason?: string; }
 export interface ReactionPhase { batch: string; tick: number; slots: string[]; completed: string[]; finalized: boolean; plans?: Record<string, { action: Action; fallback: boolean }>; }
+export interface NpcAwareness { noticed: string[]; cursor: number; hp: number; tired: boolean; wakefulness: Actor['wakefulness']; atGate: boolean; }
 export interface World {
+  awareness?: Record<string, NpcAwareness>;
   id: string; version: number; tick: number; seed: number; width: number; height: number;
   walls: Point[]; entities: Record<string, Entity>; actors: Record<string, Actor>;
   events: WorldEvent[]; issues: Issue[];
