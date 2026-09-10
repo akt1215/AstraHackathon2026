@@ -44,5 +44,6 @@ export interface LifeSceneHooks { onObject(id: string, screen: { x: number; y: n
 export interface LifeScene {
   update(state: LifeState): void; dispose(): void; focusResident(id: string): void;
   setCamera(mode: 'orbit' | 'follow'): void;
+  movementDirection(horizontal: number, vertical: number): LifePoint;
   projectResident(id: string): { x: number; y: number; visible: boolean } | null;
 }

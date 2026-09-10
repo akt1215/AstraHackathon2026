@@ -1,5 +1,12 @@
 import type { ActivityKind, LifeCommand, LifeObject, LifeResident, LifeResponse, LifeState, LifeTheme } from '../../shared/life-types';
 import { createLifeScene } from './life-scene';
+import '@fontsource/dm-sans/latin-400.css';
+import '@fontsource/dm-sans/latin-500.css';
+import '@fontsource/dm-sans/latin-600.css';
+import '@fontsource/dm-sans/latin-700.css';
+import '@fontsource/manrope/latin-600.css';
+import '@fontsource/manrope/latin-700.css';
+import '@fontsource/manrope/latin-800.css';
 import './life-style.css';
 
 const shapes: Record<string, string> = {
@@ -161,9 +168,9 @@ function acceptState(next: LifeState) {
   $('#activity-queue').innerHTML = player.queue.length ? `${icon('queue')} ${player.queue.map(q=>`<span title="${esc(q.label)}">${icon(actionInfo[q.kind]?.icon ?? 'leaf')}</span>`).join('')}<small>${player.queue.length} queued</small>` : '';
   const provider = next.provider;
   const badge = $('#provider-badge');
-  badge.classList.toggle('disconnected', !provider.available);
+  badge.classList.toggle('disconnected', !provider.available || Boolean(provider.error));
   badge.classList.toggle('thinking', provider.busy);
-  badge.querySelector('span:last-child')!.textContent = provider.busy ? `${provider.name} is considering a response…` : provider.available ? `${provider.name}${provider.model ? ` · ${provider.model}` : ''}` : 'Local simulation · model not connected';
+  badge.querySelector('span:last-child')!.textContent = provider.busy ? `${provider.name} is considering a response…` : provider.error ? `${provider.name} · last reply unavailable` : provider.available ? `${provider.name}${provider.model ? ` · ${provider.model}` : ''}` : 'Local simulation · model not connected';
   badge.title = provider.error ?? `${provider.calls} model calls${provider.lastLatencyMs === null ? '' : ` · last response ${(provider.lastLatencyMs/1000).toFixed(1)}s`}`;
   renderPeople(); renderEvents(); renderContext();
 }
@@ -272,11 +279,11 @@ document.addEventListener('focusin',e=>{if((e.target as HTMLElement).closest('in
 window.addEventListener('keydown',e=>{
   if ((e.target as HTMLElement).closest('input,textarea,button,dialog') || document.querySelector('dialog[open]')) return;
   const key=e.key.toLowerCase();
-  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {heldKeys.add(key);e.preventDefault();}
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {heldKeys.add(key);e.preventDefault();if(!e.repeat)moveOneStep();}
   if(e.key==='Escape'){closeContext();$('#world-menu').classList.add('hidden');}
 });
 window.addEventListener('keyup',e=>heldKeys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>heldKeys.clear());
-setInterval(()=>{
+function moveOneStep(){
   if (!state || movePending || !heldKeys.size || state.speed===0) return;
   const p=state.residents.find(r=>r.role==='player');if(!p)return;
   let x=0,z=0;
@@ -285,9 +292,11 @@ setInterval(()=>{
   if(heldKeys.has('a')||heldKeys.has('arrowleft'))x-=1;
   if(heldKeys.has('d')||heldKeys.has('arrowright'))x+=1;
   if(!x&&!z)return;
+  const movement=scene.movementDirection(x,z);
   movePending=true;
-  void command({kind:'walk',x:Math.max(.5,Math.min(state.width-.5,p.x+x*1.4)),z:Math.max(.5,Math.min(state.depth-.5,p.z+z*1.4))},true).finally(()=>{movePending=false;});
-},240);
+  void command({kind:'walk',x:Math.max(.5,Math.min(state.width-.5,p.x+movement.x*1.4)),z:Math.max(.5,Math.min(state.depth-.5,p.z+movement.z*1.4))},true).finally(()=>{movePending=false;});
+}
+setInterval(moveOneStep,240);
 
 let lastSpeechPaint=0;
 function paintSpeech(t:number){

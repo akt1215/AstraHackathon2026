@@ -16,3 +16,13 @@ CC0 permits copying, modification, and redistribution, including serving the raw
 The source glTF files use embedded binary data and material colors. They were losslessly repacked as self-contained GLB files; geometry, colors, 62-bone rigs, and 24 source animations are unchanged. No external textures or decoder dependencies are required. Exact hashes, sizes, animation names, and source bounds are recorded in `client/public/life-assets/manifest.json`.
 
 All three import successfully using Babylon.js 9.26.0, each with one 62-bone skeleton. `Idle`, `Walk`, `Interact`, and `Wave` were each started and sampled through Babylon's NullEngine. This checks import and clip execution, not rendered appearance. Characters are roughly 1.85 units tall, Y-up, with feet near zero. Source-facing direction is +Z; Babylon's handedness conversion root must be considered when rotating them. There is no source `Sit` animation.
+
+
+## Interface fonts
+
+DM Sans and Manrope are bundled locally through Fontsource under the SIL Open Font License. License copies are in `client/public/life-assets/licenses/`. Only Latin styles used by the interface are imported; other text uses the system fallback.
+
+- https://fontsource.org/fonts/dm-sans
+- https://fontsource.org/fonts/manrope
+
+The life client does not load fonts from a third-party server at runtime.
