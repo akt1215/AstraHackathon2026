@@ -1,0 +1,29 @@
+{
+  "name": "dm-is-real",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A tabletop RPG where the model is the Dungeon Master and the game engine.",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "node --env-file-if-exists=.env --import tsx --watch server/index.ts",
+    "dev:client": "vite --config vite.config.ts",
+    "build": "vite build --config vite.config.ts",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env --import tsx server/index.ts",
+    "test": "vitest run --root .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "probe": "node --env-file-if-exists=.env --import tsx server/probe.ts"
+  },
+  "dependencies": {
+    "openai": "^7",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "concurrently": "^10",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vite": "^8",
+    "vitest": "^5"
+  }
+}
