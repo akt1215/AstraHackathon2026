@@ -150,7 +150,7 @@ See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, 
 - AI character generation selects supported features and may add custom pixel details. Weapon starter moves are authored, not invented by the LLM.
 - Appearance attachments use bounded pixel rectangles; generated awakening skills use supported visual primitives.
 - Class progression, functional stat effects, a complete equipment system, and full combat remain unfinished.
-- The generation endpoint runs in Vite’s development server. `dist` is a static frontend and does not include a production API backend.
+- Production uses `npm start` to serve `dist` and the generation API together. Serving `dist` alone cannot handle AI requests.
 - Request caching and API budgets are process-local. A production multiplayer release needs authentication, authoritative events, and durable server storage.
 
 ## Verification
@@ -160,4 +160,13 @@ npm test
 npm run build
 ```
 
-The 35 automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
+The 44 automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
+
+
+## Railway deployment
+
+`railway.json` sets the build command to `npm run build`, start command to `npm start`, and health check to `/api/generation/status`. The Node server binds to `0.0.0.0` on Railway's `PORT`. If you have a custom start command in Railway, use `npm start` rather than a static file server or `vite preview`.
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` in the service's Railway Variables. The model must be available to your API project. Local `.env` files are not deployed or automatically loaded by the production server. Optionally set `OPENAI_MAX_GENERATIONS` (default 20 attempts per server process; shared by all visitors and reset on restart).
+
+Deploy the updated source, then check `/api/generation/status`: it should return JSON `{"configured":true}`, not the game HTML. This confirms configuration is present, not model access or billing validity; test a character name request to verify the provider connection.

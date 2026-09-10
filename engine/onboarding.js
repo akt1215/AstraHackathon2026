@@ -1,3 +1,4 @@
+import {generationResponse} from './api-response.js';
 import {CLASS_COLORS} from '../content/game-config.js';
 import {HAIRSTYLES,CLOTHES,HAIR_COLORS,SKIN_COLORS,OUTFIT_COLORS,WEAPONS,characterContent} from '../content/characters.js';
 import {validateContent} from './contracts.js';
@@ -24,7 +25,7 @@ export function installOnboarding({runtime,onSave,fetcher=fetch}){
   busy=true;controller=new AbortController();const currentController=controller;
   const timer=setTimeout(()=>controller?.abort(),45000);
   dialog.querySelectorAll('form button,form input,form textarea').forEach(el=>el.disabled=true);dialog.querySelector('#creatorStatus').textContent='Creating your draft… You’ll review it before saving.';
-  try{const kind=mode==='name'?'name':'character',id=crypto.randomUUID();const r=await fetcher('/api/generation',{method:'POST',headers:{'Content-Type':'application/json'},signal:currentController.signal,body:JSON.stringify({id,kind,mode,brief:mode==='name'?`Suggest a name for this character: ${draft.heroClass}, ${draft.weapon}, ${draft.bio}`:mode==='random'?'Invent a surprising original traveler.':brief,events:[],profile:draft})});const result=await r.json();if(!r.ok)throw new Error(result.error||'Generation failed.');validateContent(kind,result.content,[]);if(!dialog.open||currentController!==controller)return;
+  try{const kind=mode==='name'?'name':'character',id=crypto.randomUUID();const r=await fetcher('/api/generation',{method:'POST',headers:{'Content-Type':'application/json'},signal:currentController.signal,body:JSON.stringify({id,kind,mode,brief:mode==='name'?`Suggest a name for this character: ${draft.heroClass}, ${draft.weapon}, ${draft.bio}`:mode==='random'?'Invent a surprising original traveler.':brief,events:[],profile:draft})});const result=await generationResponse(r);validateContent(kind,result.content,[]);if(!dialog.open||currentController!==controller)return;
    if(kind==='name'){draft.name=result.content.name;keepName=true}else{const originalName=draft.name;draft={...result.content};if(keepName&&originalName.trim())draft.name=originalName}
    status='AI draft ready. Adjust anything you like, then save.';
   }catch(e){if(dialog.open&&currentController===controller)status=e.name==='AbortError'?'Generation timed out or was cancelled. Your character is unchanged.':e.message}
