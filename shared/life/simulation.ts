@@ -102,8 +102,7 @@ export class LifeSimulation {
     let destination = object?.approach ?? activity.destination;
     if (activity.targetId && SOCIAL.has(activity.kind)) {
       const target = this.resident(activity.targetId);
-      if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') throw new LifeError(`${target.name} is asleep. Let them rest.`);
-      destination = approachResident(this.world, r, target);
+        destination = approachResident(this.world, r, target);
       if (!destination) throw new LifeError('There is no room to approach them.');
     }
     const path = destination ? route(this.world, r, destination) : [];
@@ -263,7 +262,6 @@ export class LifeSimulation {
       this.clear(actor, false);
       return;
     }
-    if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') { this.say(actor, 'They are resting. I will come back.'); this.clear(actor, false); return; }
     const relationship = target.relationships[actor.id] ?? 0;
     if (activity.kind === 'insult') {
       this.relationship(actor, target, -18); this.say(target, 'That hurt. I need some space.');
@@ -359,7 +357,6 @@ export class LifeSimulation {
     if (target.id === player.id) throw new LifeError('Choose another resident.');
     if (!text.trim() || text.length > 800) throw new LifeError('Use between 1 and 800 characters.');
     if (distance(player, target) > 3) throw new LifeError(`Move closer to ${target.name} to talk (within 3 meters).`);
-    if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') throw new LifeError(`${target.name} is asleep.`);
     if (this.pendingTalk) throw new LifeError('A resident is still considering your last words.', 409);
     const context = { name: target.name, traits: [...target.traits], needs: { ...target.needs }, relationship: target.relationships.player ?? 0, memories: structuredClone(conversationMemories(target.memories)), playerName: player.name, hour: this.world.hour, activity: target.activity?.label ?? null };
     this.clear(player); this.clear(target);
@@ -376,7 +373,10 @@ export class LifeSimulation {
     if (!['accept_chat', 'share', 'decline', 'walk_away'].includes(decision.action) || !ACT_KINDS.includes(act) || !decision.speech.trim() || decision.speech.length > 400) throw new LifeError('The resident response was outside the supported contract.');
     const player = this.resident('player'), target = this.resident(request.targetId);
     this.pendingTalk = null;
-    if (player.activity?.id !== request.activityId || target.activity?.id !== request.targetActivityId || distance(player, target) > 3 || target.activity?.kind === 'sleep') {
+    // Deliberately no longer checks what the target is doing. Housemates act autonomously, so their
+    // activity almost always changes while the model is thinking; keying validity to it silently
+    // threw away real replies. Only the player's own intent and the world's identity still gate it.
+    if (player.activity?.id !== request.activityId) {
       if (player.activity?.id === request.activityId) this.clear(player, false);
       return false;
     }

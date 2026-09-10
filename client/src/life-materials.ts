@@ -1,5 +1,5 @@
 import {
-  ArcRotateCamera, Color3, Color4, ColorCurves, DefaultRenderingPipeline, DepthOfFieldEffectBlurLevel,
+  ArcRotateCamera, Color3, Color4, ColorCurves, DefaultRenderingPipeline,
   HDRCubeTexture, Mesh, MeshBuilder, PBRMaterial, PointLight, Scene, SSAO2RenderingPipeline,
   Texture, TransformNode, Vector3,
 } from '@babylonjs/core';
@@ -38,15 +38,8 @@ export function createCinematicAtmosphere(scene: Scene, camera: ArcRotateCamera,
   const pipeline = new DefaultRenderingPipeline('cinematic-finishing', true, scene, [camera]);
   pipeline.fxaaEnabled = true;
   pipeline.samples = 2;
-  pipeline.bloomEnabled = true; pipeline.bloomThreshold = .86; pipeline.bloomWeight = .26; pipeline.bloomKernel = 64; pipeline.bloomScale = .5;
+  pipeline.bloomEnabled = true; pipeline.bloomThreshold = .86; pipeline.bloomWeight = .26; pipeline.bloomKernel = 40; pipeline.bloomScale = .35;
   pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = .22; pipeline.sharpen.colorAmount = 1;
-  // Shallow focus on the room, falling off into the city so the background reads as distance
-  // rather than as more scenery competing with the home.
-  pipeline.depthOfFieldEnabled = true;
-  pipeline.depthOfFieldBlurLevel = DepthOfFieldEffectBlurLevel.Low;
-  pipeline.depthOfField.focalLength = 42;
-  pipeline.depthOfField.fStop = 3.6;
-  pipeline.depthOfField.focusDistance = 16500;
   // Filmic finish: a slight cool lift in the shadows against the warm key, held-back saturation,
   // a vignette to seat the room in frame, and grain so flat surfaces are never mathematically clean.
   const curves = new ColorCurves();
@@ -62,9 +55,11 @@ export function createCinematicAtmosphere(scene: Scene, camera: ArcRotateCamera,
   scene.imageProcessingConfiguration.vignetteColor = new Color4(.03, .05, .09, 0);
   pipeline.grainEnabled = true; pipeline.grain.intensity = 6; pipeline.grain.animated = true;
   scene.imageProcessingConfiguration.toneMappingType = 1;
-  const ao = new SSAO2RenderingPipeline('furniture-contact-shading', scene, { ssaoRatio: .75, blurRatio: .5 }, [camera]);
-  ao.radius = .55; ao.totalStrength = 1.35; ao.samples = 16; ao.expensiveBlur = true;
-  ao.maxZ = 55; ao.minZAspect = .1;
+  // Half-resolution occlusion with the cheap blur. At this camera the extra samples and the
+  // expensive blur cost several milliseconds a frame and are not visible in the result.
+  const ao = new SSAO2RenderingPipeline('furniture-contact-shading', scene, { ssaoRatio: .5, blurRatio: .5 }, [camera]);
+  ao.radius = .5; ao.totalStrength = 1.25; ao.samples = 8; ao.expensiveBlur = false;
+  ao.maxZ = 45; ao.minZAspect = .1;
 
   const root = new TransformNode('blue-hour-city', scene);
   const facade = new PBRMaterial('city-aged-brick', scene);

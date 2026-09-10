@@ -67,10 +67,9 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   sun.diffuse = c3('#ffc186');
   sun.specular = c3('#ffd9ab');
   const shadows = new ShadowGenerator(2048, sun);
-  // Contact hardening gives a tight shadow at the point of contact that widens with distance,
-  // which is most of what separates a rendered contact from a stamped-on dark blob.
-  shadows.useContactHardeningShadow = true;
-  shadows.contactHardeningLightSizeUVRatio = .07;
+  // Percentage-closer filtering rather than contact hardening. The softening at the contact point
+  // is worth a millisecond, not the four that the contact-hardening search costs every frame.
+  shadows.usePercentageCloserFiltering = true;
   shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
   shadows.bias = .0016;
   shadows.normalBias = .03;
@@ -882,6 +881,31 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   };
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(canvas);
   window.addEventListener('resize', resize);
+  // The display's own frame interval, learned from the fastest frames actually delivered. A frame
+  // that misses it judders even when the average looks healthy, which is what a 120Hz panel makes
+  // obvious: 88 FPS there is not a smooth 88, it is a stream of missed refreshes.
+  let refreshMs = 0;
+  let renderScale = 1;
+  let scaleHold = 0;
+  function adaptQuality(sorted: number[]): void {
+    const fastest = sorted[Math.floor(sorted.length * .05)]!;
+    refreshMs = refreshMs ? Math.min(refreshMs, fastest) : fastest;
+    if (refreshMs < 4 || refreshMs > 40) return;
+    const p95 = sorted[Math.floor(sorted.length * .95)]!;
+    const median = sorted[Math.floor(sorted.length * .5)]!;
+    if (scaleHold > 0) { scaleHold -= 1; return; }
+    // Render fewer pixels rather than dropping frames; FXAA and the sharpen pass hide the softening.
+    // Scale up on the tail, because that is what judders. Recover on the median: once locked to
+    // vsync the tail sits permanently just above the refresh interval, so judging recovery on it
+    // would leave the scene downscaled forever after a single slow patch.
+    if (p95 > refreshMs * 1.3 && renderScale < 1.6) { renderScale = Math.min(1.6, +(renderScale + .15).toFixed(2)); }
+    else if (median < refreshMs * 1.12 && p95 < refreshMs * 1.5 && renderScale > 1) { renderScale = Math.max(1, +(renderScale - .15).toFixed(2)); }
+    else return;
+    engine.setHardwareScalingLevel(renderScale);
+    canvas.dataset.sceneRenderScale = String(renderScale);
+    // Let the change settle before judging it, so the two directions cannot oscillate.
+    scaleHold = 3;
+  }
   engine.runRenderLoop(() => {
     if (disposed) return;
     const now = performance.now();
@@ -901,6 +925,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
           fps, averageFps: fps, width: engine.getRenderWidth(), height: engine.getRenderHeight(),
           meshes: scene.meshes.length, activeMeshes: scene.getActiveMeshes().length,
         });
+        adaptQuality(sorted);
         previousMetric = now;
       }
     } else previousFrame = 0;
