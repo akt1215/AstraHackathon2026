@@ -13,7 +13,6 @@ The current build takes place in **Cinderwatch**, a volcanic outpost with magma 
 - Choose a sword, spear, bow, or staff independently of class.
 - Preview your appearance and weapon move set before entering the world.
 - Ask AI for a name, describe a new character, or generate a random character with custom pixel details.
-- Choose **New body and animations** to become a dragon or another original creature. Preview its moves, save it, or return to a human form. Full creature generation can take up to 90 seconds.
 - Edit any generated draft before saving. Typed names are preserved unless you explicitly generate a new name.
 - Reopen the creator later without resetting your quest or journal history.
 
@@ -146,7 +145,7 @@ See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, 
 - No multiplayer, accounts, server-authoritative gameplay, or cloud saves.
 - No actual assistance/hostility encounters or good/evil progression yet. The AI does not infer morality from exploration or practice.
 - Quest variety is bounded by three rooms and three combos; new quest titles do not create new playable locations or mechanics.
-- Human generation selects supported cosmetics and weapon moves. **New body and animations** instead generates a complete polygon creature with idle, walk, dodge, and four named attack animations. These replace the human sprite in the creator, overworld, and battle preview. Creature attacks remain visual prototype actions; generation does not add flight, new damage rules, or arbitrary executable code.
+- AI character generation selects supported features and may add custom pixel details. Weapon starter moves are authored, not invented by the LLM.
 - Appearance attachments use bounded pixel rectangles; generated awakening skills use supported visual primitives.
 - Class progression, functional stat effects, a complete equipment system, and full combat remain unfinished.
 - The generation endpoint runs in Vite’s development server. `dist` is a static frontend and does not include a production API backend.
@@ -159,4 +158,4 @@ npm test
 npm run build
 ```
 
-The automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
+The 35 automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.

@@ -1,4 +1,3 @@
-import {drawForm} from './engine/form-renderer.js';
 import {attackPose} from './engine/attack-pose.js';
 import {drawHeldWeapon,drawWeaponAction} from './engine/weapon-renderer.js';
 import {drawSwing} from './combat-visuals.js';
@@ -38,7 +37,6 @@ R(c,344,75,48,18,'#182324');R(c,344,75,48,1,'#977957');c.font='11px VT323';c.tex
 for(let i=0;i<350;i++){let x=rand()*800,y=rand()*600;R(c,x,y,1,1,'#a49a7555')}for(let y=0;y<600;y+=100)light(c,647,y,145,.19);
 }
 export function drawHero(c,x,y,color,scale=1,name='',blade=false,pose={}){
- if(pose.custom?.form){drawForm(c,x,y,scale,pose.custom.form,pose,name);return}
  const custom=pose.custom;const role=pose.role||'Warrior',direction=pose.direction||'down',walking=pose.walking||false;
  if(custom)color=custom.outfitColor;
  const step=walking?Math.sin(performance.now()/85):0, stride=Math.round(step*3),bob=walking?Math.round(Math.abs(step)):0;

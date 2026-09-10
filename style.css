@@ -14,7 +14,3 @@ html,body{width:100%;height:100%;overflow:hidden;background:#82ad60;font-family:
 .hud-health>div:first-child>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 42px)}
 /* Keep guidance along the top edge and leave the world below unobstructed. */
 .controls-hint{display:block;top:24px;left:24px;max-width:calc(100vw - 570px);font-size:17px;line-height:1.5}.area-label{top:90px;left:24px}#questTracker{top:24px;left:auto;right:220px;width:300px;max-width:300px}.evolution-controls{top:94px}@media(max-width:1000px) and (min-width:701px){.controls-hint{max-width:calc(100vw - 500px)}#questTracker{right:190px;width:260px;max-width:260px}.area-label{top:104px}}@media(max-width:700px){.controls-hint{display:block;top:12px;left:12px;max-width:calc(100vw - 118px);font-size:15px;line-height:1.4}.area-label{display:none}#questTracker{top:100px;left:12px;right:auto;width:210px;max-width:calc(100vw - 170px)}.evolution-controls{top:83px}}
-
-#characterCreator select { width:100%; margin:8px 0 18px; padding:12px; color:var(--cream,#ead8ae); background:#152729; border:2px solid #777c58; font:inherit; }
-#characterCreator fieldset:disabled { opacity:.45; }
-#characterCreator [data-preview] { font-size:18px; padding:6px 9px; }
