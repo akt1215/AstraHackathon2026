@@ -1,8 +1,9 @@
 import type { LifePoint, LifeState } from '../life-types';
+import { STATIC_FIXTURES } from './layout';
 export const distance = (a: LifePoint, b: LifePoint): number => Math.hypot(a.x - b.x, a.z - b.z);
 const CLEARANCE = .2;
 export function walkable(state: LifeState, point: LifePoint): boolean {
-  return Number.isFinite(point.x) && Number.isFinite(point.z) && point.x >= .35 && point.z >= .35 && point.x <= state.width - .35 && point.z <= state.depth - .35 && !state.objects.some(o => Math.abs(point.x - o.x) < o.width / 2 + CLEARANCE && Math.abs(point.z - o.z) < o.depth / 2 + CLEARANCE);
+  return Number.isFinite(point.x) && Number.isFinite(point.z) && point.x >= .35 && point.z >= .35 && point.x <= state.width - .35 && point.z <= state.depth - .35 && ![...state.objects, ...STATIC_FIXTURES].some(o => Math.abs(point.x - o.x) < o.width / 2 + CLEARANCE && Math.abs(point.z - o.z) < o.depth / 2 + CLEARANCE);
 }
 function clearSegment(state: LifeState, a: LifePoint, b: LifePoint): boolean {
   const steps = Math.max(1, Math.ceil(distance(a, b) / .12));

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LifeSimulation } from './simulation';
+import { route, walkable } from './navigation';
+import { STATIC_FIXTURES } from './layout';
 
 function command(sim: LifeSimulation, command: Parameters<LifeSimulation['command']>[0]['command'], id = crypto.randomUUID()) {
   return sim.command({ worldId: sim.state().id, requestId: id, command });
@@ -71,6 +73,7 @@ describe('continuous life simulation', () => {
     const sim = new LifeSimulation(); command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
     const request = sim.beginTalk('june', 'Hello'); command(sim, { kind: 'cancel' });
     expect(sim.applyReaction(request, { action: 'accept_chat', speech: 'Too late' })).toBe(false);
+    expect(sim.state().residents.find(r => r.id === 'june')!.activity?.label).not.toBe('Considering a reply');
   });
   it('approaches another resident and makes repeated insults cause a later refusal', () => {
     const sim = new LifeSimulation();
@@ -82,5 +85,43 @@ describe('continuous life simulation', () => {
     command(sim, { kind: 'social', targetId: 'june', action: 'share' }); advance(sim, 12);
     expect(sim.state().events.some(e => e.actor === 'june' && e.kind === 'declined' && e.text.includes('history'))).toBe(true);
     expect(sim.state().residents.find(r => r.id === 'june')!.memories.some(m => m.kind === 'insult')).toBe(true);
+    command(sim, { kind: 'speed', speed: 3 }); advance(sim, 240);
+    expect(sim.state().residents.find(r => r.id === 'june')!.memories.some(m => m.kind === 'insult')).toBe(true);
+  });
+  it('never lets an autonomous social invitation replace the player activity', () => {
+    const seed = new LifeSimulation().snapshot();
+    seed.state.residents.find(r => r.id === 'june')!.needs = { hunger: 100, energy: 100, social: 0, fun: 100 };
+    seed.state.residents.find(r => r.id === 'leo')!.needs = { hunger: 100, energy: 0, social: 100, fun: 100 };
+    const sim = new LifeSimulation(seed); advance(sim, .2);
+    command(sim, { kind: 'use', objectId: 'easel', action: 'paint' });
+    advance(sim, 12);
+    expect(player(sim).activity?.kind).toBe('paint');
+  });
+  it('provides a collision-free approach to every furnished object', () => {
+    const sim = new LifeSimulation(), state = sim.state(), start = player(sim);
+    for (const object of state.objects) {
+      const path = route(state, start, object.approach);
+      expect(path, object.id).not.toBeNull();
+      let before = start;
+      for (const point of path!) {
+        for (let i = 1; i <= 20; i++) expect(walkable(state, { x: before.x + (point.x - before.x) * i / 20, z: before.z + (point.z - before.z) * i / 20 }), object.id).toBe(true);
+        before = { ...before, ...point };
+      }
+    }
+  });
+  it('blocks every static furnishing in addition to interactive furniture', () => {
+    const state = new LifeSimulation().state();
+    for (const fixture of STATIC_FIXTURES) expect(walkable(state, { x: fixture.x, z: Math.max(.4, fixture.z) }), fixture.id).toBe(false);
+  });
+  it('reconciles saved furniture approaches with the current visible layout without losing an activity', () => {
+    const seed = new LifeSimulation().snapshot();
+    const table = seed.state.objects.find(o => o.id === 'table')!;
+    table.approach = { x: 5.7, z: 3 }; table.occupiedBy = 'player';
+    const person = seed.state.residents[0]; person.x = 5.7; person.z = 3;
+    person.activity = { id: 'saved-meal', kind: 'eat', label: 'Making a meal', targetId: 'table', destination: table.approach, phase: 'doing', duration: 12, elapsed: 2, autonomous: false };
+    const sim = new LifeSimulation(seed);
+    expect(walkable(sim.state(), player(sim))).toBe(true);
+    expect(player(sim).activity?.id).toBe('saved-meal');
+    expect(sim.state().objects.find(o => o.id === 'table')!.approach).toEqual({ x: 6.4, z: 3 });
   });
 });

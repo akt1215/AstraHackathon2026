@@ -1,6 +1,7 @@
 import type { ActivityKind, LifeActivity, LifeCommandEnvelope, LifeEvent, LifePoint, LifeProvider, LifeResident, LifeResponse, LifeState, NeedKey } from '../life-types';
 import { approachResident, distance, route, walkable } from './navigation';
 import { createLifeWorld, DURATIONS, LABELS, NEEDS, SOCIAL } from './world';
+import { conversationMemories, retainMemories } from './memory';
 
 export type ReactionAction = 'accept_chat' | 'share' | 'decline' | 'walk_away';
 export interface ReactionDecision { action: ReactionAction; speech: string }
@@ -25,6 +26,29 @@ export class LifeSimulation {
     this.world = saved ? structuredClone(saved.state) : createLifeWorld();
     this.receipts = new Map(saved?.receipts ?? []);
     this.world.provider.busy = false;
+    if (saved) {
+      // Saves own progress; the current room definition owns physical geometry.
+      let adjusted = false;
+      for (const definition of createLifeWorld().objects) {
+        const object = this.world.objects.find(o => o.id === definition.id);
+        if (!object) throw new LifeError('The saved home is missing a required furnishing.');
+        if (object.x !== definition.x || object.z !== definition.z || object.width !== definition.width || object.depth !== definition.depth || distance(object.approach, definition.approach) > .001) adjusted = true;
+        Object.assign(object, { x: definition.x, z: definition.z, width: definition.width, depth: definition.depth, approach: definition.approach });
+      }
+      for (const resident of this.world.residents) {
+        const object = this.world.objects.find(o => o.id === resident.activity?.targetId);
+        if (resident.activity && object) resident.activity.destination = { ...object.approach };
+        if (!walkable(this.world, resident)) {
+          const floor: LifePoint[] = [];
+          for (let x = .5; x < this.world.width; x += .5) for (let z = .5; z < this.world.depth; z += .5) if (walkable(this.world, { x, z })) floor.push({ x, z });
+          floor.sort((a, b) => distance(a, resident) - distance(b, resident));
+          const destination = object && walkable(this.world, object.approach) ? object.approach : floor[0];
+          if (!destination) throw new LifeError('The saved home has no safe floor position.');
+          resident.x = destination.x; resident.z = destination.z; adjusted = true;
+        }
+      }
+      if (adjusted) this.world.version++;
+    }
     // Provider work cannot survive a process restart; release only that conversation.
     const interrupted = this.world.residents.find(r => r.activity?.label === 'Considering a reply');
     if (interrupted) {
@@ -43,8 +67,8 @@ export class LifeSimulation {
     this.world.events.push(event); this.world.events = this.world.events.slice(-80);
     // Only the participants and nearby residents remember this interaction.
     const origin = this.resident(actor);
-    for (const r of this.world.residents) if (r.id === actor || r.id === targetId || distance(origin, r) <= 2.5) {
-      r.memories.push({ ...event }); r.memories = r.memories.slice(-32);
+    for (const r of this.world.residents) if (kind !== 'provider-unavailable' && (r.id === actor || r.id === targetId || distance(origin, r) <= 2.5)) {
+      r.memories.push({ ...event }); r.memories = retainMemories(r.memories);
     }
     return event;
   }
@@ -54,7 +78,11 @@ export class LifeSimulation {
     r.activity = null;
     if (queue) r.queue = [];
     for (const o of this.world.objects) if (o.occupiedBy === r.id) o.occupiedBy = null;
-    if (r.id === 'player') this.pendingTalk = null;
+    if (r.id === 'player' && this.pendingTalk) {
+      const target = this.resident(this.pendingTalk.targetId);
+      this.pendingTalk = null;
+      if (target.activity?.label === 'Considering a reply') this.clear(target, false);
+    }
   }
   private make(kind: ActivityKind, targetId: string | null, destination: LifePoint | null, autonomous: boolean): LifeActivity {
     return { id: crypto.randomUUID(), kind, label: LABELS[kind], targetId, destination, phase: destination ? 'walking' : 'doing', elapsed: 0, duration: DURATIONS[kind], autonomous };
@@ -62,7 +90,7 @@ export class LifeSimulation {
   private start(r: LifeResident, activity: LifeActivity): void {
     const object = this.world.objects.find(o => o.id === activity.targetId);
     if (object && object.occupiedBy && object.occupiedBy !== r.id) throw new LifeError(`${object.name} is in use by ${this.resident(object.occupiedBy).name}.`);
-    let destination = activity.destination;
+    let destination = object?.approach ?? activity.destination;
     if (activity.targetId && SOCIAL.has(activity.kind)) {
       const target = this.resident(activity.targetId);
       if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') throw new LifeError(`${target.name} is asleep. Let them rest.`);
@@ -197,6 +225,10 @@ export class LifeSimulation {
     }
   }
   private beginSocial(actor: LifeResident, target: LifeResident, activity: LifeActivity): void {
+    if (activity.autonomous && target.role === 'player' && target.activity) {
+      this.clear(actor, false);
+      return;
+    }
     if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') { this.say(actor, 'They are resting. I will come back.'); this.clear(actor, false); return; }
     const relationship = target.relationships[actor.id] ?? 0;
     if (activity.kind === 'insult') {
@@ -251,7 +283,7 @@ export class LifeSimulation {
     if (distance(player, target) > 3) throw new LifeError(`Move closer to ${target.name} to talk (within 3 meters).`);
     if (target.activity?.kind === 'sleep' && target.activity.phase === 'doing') throw new LifeError(`${target.name} is asleep.`);
     if (this.pendingTalk) throw new LifeError('A resident is still considering your last words.', 409);
-    const context = { name: target.name, traits: [...target.traits], needs: { ...target.needs }, relationship: target.relationships.player ?? 0, memories: structuredClone(target.memories.slice(-12)), playerName: player.name, hour: this.world.hour, activity: target.activity?.label ?? null };
+    const context = { name: target.name, traits: [...target.traits], needs: { ...target.needs }, relationship: target.relationships.player ?? 0, memories: structuredClone(conversationMemories(target.memories)), playerName: player.name, hour: this.world.hour, activity: target.activity?.label ?? null };
     this.clear(player); this.clear(target);
     player.activity = this.make('chat', target.id, null, false); player.activity.duration = 40; player.activity.label = `Talking with ${target.name}`;
     target.activity = this.make('chat', player.id, null, true); target.activity.duration = 40; target.activity.label = 'Considering a reply';
