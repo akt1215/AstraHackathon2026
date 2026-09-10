@@ -385,10 +385,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   scan(cinematicLinen, 'rough_linen', 6);
   const cinematicRust = themedMaterial('cinematic-rust-fabric', 'accent');
   scan(cinematicRust, 'rough_linen', 6);
+  const paintedSage = themedMaterial('cinematic-painted-sage', 'sofa'); paintedSage.roughness = .66;
   const cinematicOak = material('cinematic-oak-joinery', '#c8b99b');
   scan(cinematicOak, 'wood_floor', .6);
   function assetMaterial(name: string): PBRMaterial | undefined {
-    if (name.includes('fabric.sage') || name.includes('paint.sage')) return upholstery;
+    if (name.includes('fabric.sage')) return upholstery;
+    if (name.includes('paint.sage')) return paintedSage;
     if (name.includes('fabric.terracotta')) return cinematicRust;
     if (name.includes('fabric.linen')) return cinematicLinen;
     if (name.includes('seam.linen')) return cream;
@@ -410,6 +412,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       for (const mesh of result.meshes) {
         if (!mesh.parent) mesh.parent = parent;
         if (mesh.material) mesh.material = assetMaterial(mesh.material.name) ?? mesh.material;
+        if (mesh.material instanceof PBRMaterial) { mesh.material.maxSimultaneousLights = 8; mesh.material.environmentIntensity = .65; }
         const tag = objectId ?? parent.metadata?.objectId;
         mesh.metadata = tag ? { objectId: tag } : null; mesh.isPickable = Boolean(tag);
         mesh.receiveShadows = true; shadows.addShadowCaster(mesh);
@@ -545,7 +548,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       if (merged) { merged.parent = root; merged.receiveShadows = true; shadows.addShadowCaster(merged); }
     }
     root.position.copyFrom(originalPosition); root.rotation.copyFrom(originalRotation);
-    const file = object.kind === 'sofa' ? 'sofa' : object.kind === 'bed' ? 'bed' : object.kind === 'table' ? 'dining-table' : null;
+    const file = object.kind === 'sofa' ? 'sofa' : object.kind === 'bed' ? 'bed' : object.kind === 'table' ? 'dining-table' : object.kind === 'fridge' ? 'fridge' : object.kind === 'bookshelf' ? 'bookshelf' : null;
     if (file) {
       const fallback = root.getChildMeshes();
       void loadCinematicAsset(file, root).then(loaded => {
