@@ -124,4 +124,16 @@ describe('continuous life simulation', () => {
     expect(player(sim).activity?.id).toBe('saved-meal');
     expect(sim.state().objects.find(o => o.id === 'table')!.approach).toEqual({ x: 6.4, z: 3 });
   });
+  it('protects a pending reply from an arriving autonomous social invitation', () => {
+    const seed = new LifeSimulation().snapshot();
+    Object.assign(seed.state.residents[0], { x: 5, z: 5 });
+    Object.assign(seed.state.residents[1], { x: 6, z: 5 });
+    Object.assign(seed.state.residents[2], { x: 7, z: 5, activity: { id: 'leo-invitation', kind: 'chat', label: 'Chatting', targetId: 'june', destination: { x: 7, z: 5 }, phase: 'walking', elapsed: 0, duration: 7, autonomous: true } });
+    const sim = new LifeSimulation(seed), request = sim.beginTalk('june', 'Can we chat?');
+    sim.tick(.1);
+    expect(sim.state().residents.find(r => r.id === 'june')!.activity?.label).toBe('Considering a reply');
+    expect(sim.applyReaction(request, { action: 'share', speech: 'Let us share lunch.' })).toBe(true);
+    expect(sim.state().residents.find(r => r.id === 'june')!.activity?.targetId).toBe('player');
+    expect(sim.state().residents.find(r => r.id === 'leo')!.activity?.targetId).not.toBe('june');
+  });
 });

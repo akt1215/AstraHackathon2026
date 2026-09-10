@@ -9,7 +9,8 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(
 async function setup() {
   const dir = mkdtempSync(join(tmpdir(), 'life-http-test-'));
   let complete: ((decision: ReactionDecision) => void) | undefined;
-  const model = { info: () => ({ name: 'test provider', model: 'test', available: true, busy: false, error: null, lastLatencyMs: null, calls: 0 }), react: () => new Promise<ReactionDecision>(resolve => { complete = resolve; }) };
+  let busy = false, calls = 0;
+  const model = { info: () => ({ name: 'test provider', model: 'test', available: true, busy, error: null, lastLatencyMs: null, calls }), react: () => { busy = true; calls++; return new Promise<ReactionDecision>(resolve => { complete = resolve; }).finally(() => { busy = false; }); } };
   const app = createLifeServer({ dataFile: join(dir, 'save.json'), model, ticking: false });
   await new Promise<void>((resolve, reject) => { app.server.once('error', reject); app.server.listen(0, '127.0.0.1', resolve); });
   const address = app.server.address(); if (!address || typeof address === 'string') throw new Error('No test port');
@@ -38,5 +39,16 @@ describe('local life HTTP service', () => {
     complete({ action: 'share', speech: 'A late answer' });
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(app.sim.state().events.some(e => e.text.includes('A late answer'))).toBe(false);
+  });
+  it('replays an accepted talk request while the provider is busy without requesting another reply', async () => {
+    const { app, post, complete } = await setup();
+    app.sim.command({ worldId: app.sim.state().id, requestId: 'approach', command: { kind: 'walk', x: 2, z: 3.5 } });
+    for (let i = 0; i < 30; i++) app.sim.tick(.1);
+    const world = app.sim.state().id, command = { kind: 'talk', targetId: 'june', text: 'Hello June' };
+    expect((await post(command, world, 'one-conversation')).status).toBe(200);
+    expect((await post(command, world, 'one-conversation')).status).toBe(200);
+    expect((await post(command, world, 'another-conversation')).status).toBe(409);
+    expect(app.sim.state().provider.calls).toBe(1);
+    complete({ action: 'accept_chat', speech: 'Hello!' });
   });
 });

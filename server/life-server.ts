@@ -49,7 +49,7 @@ export function createLifeServer(options: ServerOptions = {}) {
     if (path === '/api/life/health' && request.method === 'GET') { json(response, persistenceError ? 503 : 200, { ok: !persistenceError, provider: model.info(), persistenceError }); return; }
     if (path === '/api/life/command' && request.method === 'POST') {
       const envelope = envelopeSchema.parse(await body(request));
-      if (envelope.command.kind === 'talk' && model.info().busy) throw new LifeError('A resident is already considering your last words. Other activities still work.', 409);
+      if (envelope.command.kind === 'talk' && model.info().busy && !sim.commandRecorded(envelope.requestId)) throw new LifeError('A resident is already considering your last words. Other activities still work.', 409);
       const result = sim.command(envelope);
       save(); pendingReplies();
       json(response, 200, { ...result, state: sim.state() }); return;

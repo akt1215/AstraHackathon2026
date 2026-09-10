@@ -6,7 +6,7 @@ import { conversationMemories, retainMemories } from './memory';
 export type ReactionAction = 'accept_chat' | 'share' | 'decline' | 'walk_away';
 export interface ReactionDecision { action: ReactionAction; speech: string }
 export interface TalkRequest {
-  id: string; worldId: string; activityId: string; targetId: string; text: string;
+  id: string; worldId: string; activityId: string; targetActivityId: string; targetId: string; text: string;
   context: { name: string; traits: string[]; needs: LifeResident['needs']; relationship: number; memories: LifeResident['memories']; playerName: string; hour: number; activity: string | null };
 }
 interface Receipt { worldId: string; fingerprint: string; message: string }
@@ -59,6 +59,7 @@ export class LifeSimulation {
   }
   state(): LifeState { return structuredClone(this.world); }
   snapshot(): LifeSnapshot { return { format: 1, state: this.state(), receipts: [...this.receipts.entries()] }; }
+  commandRecorded(requestId: string): boolean { return this.receipts.has(requestId); }
   provider(info: LifeProvider): void { this.world.provider = { ...info }; }
   takeTalkRequests(): TalkRequest[] { const requests = this.outbox; this.outbox = []; return requests; }
   private resident(id: string): LifeResident { const r = this.world.residents.find(r => r.id === id); if (!r) throw new LifeError('That resident is not here.'); return r; }
@@ -225,6 +226,10 @@ export class LifeSimulation {
     }
   }
   private beginSocial(actor: LifeResident, target: LifeResident, activity: LifeActivity): void {
+    if (target.activity?.label === 'Considering a reply') {
+      this.clear(actor, false);
+      return;
+    }
     if (activity.autonomous && target.role === 'player' && target.activity) {
       this.clear(actor, false);
       return;
@@ -288,7 +293,7 @@ export class LifeSimulation {
     player.activity = this.make('chat', target.id, null, false); player.activity.duration = 40; player.activity.label = `Talking with ${target.name}`;
     target.activity = this.make('chat', player.id, null, true); target.activity.duration = 40; target.activity.label = 'Considering a reply';
     this.say(player, text.trim()); this.event(player.id, `${player.name}: ${text.trim()}`, 'speech', target.id);
-    const request = { id: crypto.randomUUID(), worldId: this.world.id, activityId: player.activity.id, targetId, text: text.trim(), context };
+    const request = { id: crypto.randomUUID(), worldId: this.world.id, activityId: player.activity.id, targetActivityId: target.activity.id, targetId, text: text.trim(), context };
     this.pendingTalk = request;
     return structuredClone(request);
   }
@@ -297,7 +302,10 @@ export class LifeSimulation {
     if (!['accept_chat', 'share', 'decline', 'walk_away'].includes(decision.action) || !decision.speech.trim() || decision.speech.length > 400) throw new LifeError('The resident response was outside the supported contract.');
     const player = this.resident('player'), target = this.resident(request.targetId);
     this.pendingTalk = null;
-    if (player.activity?.id !== request.activityId || distance(player, target) > 3 || target.activity?.kind === 'sleep') return false;
+    if (player.activity?.id !== request.activityId || target.activity?.id !== request.targetActivityId || distance(player, target) > 3 || target.activity?.kind === 'sleep') {
+      if (player.activity?.id === request.activityId) this.clear(player);
+      return false;
+    }
     const reluctant = (target.relationships.player ?? 0) < -20;
     const action = reluctant && (decision.action === 'share' || decision.action === 'accept_chat') ? 'decline' : decision.action;
     this.clear(player); this.clear(target);
