@@ -23,6 +23,12 @@ character's intent. An NPC controller chooses the other characters' intents from
 conditions, perceptions, goals and histories. Reusable world rules produce consequences;
 those consequences alter what characters perceive, how they act and who they become.
 
+**Past conduct can create future situations.** Akito specifies that repeated witnessed
+cheating can later lead to accusations or disadvantages toward the goal. His experiential
+references are Undertale and Detroit: Become Human; the intended extension is character,
+consequence and scenario variation across runs. This is a design ambition, not a verified
+claim of novelty, infinite content or implemented replayability.
+
 Akito accepted these responses to the red team:
 
 - Reusable interaction rules must preserve intended effects, not just animate motion.
@@ -74,7 +80,7 @@ selects who proposes intent; it does not grant extra physics permissions.
 | Attention and condition | Focus target/location, facing, alertness, temporary distraction, fear and other typed conditions with expiry | Validated perception rules and accepted choices; no arbitrary free-text mechanical flags |
 | Knowledge and beliefs | Perceived events, known locations, belief with evidence/source and uncertainty | Server-filtered observations; grounded controller interpretations |
 | Goals | Current task, priorities, intended action/plan | NPC controller; player supplies their own goals/intent |
-| Relationships | Trust/fear/gratitude toward identified actors with evidence | Grounded proposals from events known to that actor, validated and bounded |
+| Relationships | Trust/fear/gratitude, obligations and disputed claims toward identified actors with evidence | Grounded proposals from events known to that actor, validated and bounded |
 | Development | Behavioral evidence, tendencies, practiced capabilities, commitments and revisions | Shared development pipeline for both player and NPC |
 
 Sleeping is a physical condition; being tired can make rest more attractive and alter
@@ -290,6 +296,100 @@ Supported indirect harm is checked across the composition; calling an attack “
 cannot bypass a commitment. Newly inferred tendencies should not cause irreversible
 restrictions while their interpretation is still uncertain.
 
+### Witnessed conduct → delayed consequences → new situations
+
+Character development has an inward path (what habits/capabilities/commitments form)
+and an outward path (what others know, believe, want and do about the character).
+The outward path can create a later obstacle even when no action is forbidden now.
+“In-world cheating” here means dishonesty, broken agreements or similar conduct under
+established fictional rules; it is not an instruction to penalize creative solutions.
+An unusual solution alone is not misconduct.
+
+The proposed causal chain is:
+
+**Resolved act → actual observation → witness memory → communication or evidence →
+recipient belief → opportunity to act → consequence affecting the current goal.**
+
+| Record | Required distinction |
+| --- | --- |
+| Event | What actually happened, who acted, when/where, objects/agreements affected |
+| Observation | What a particular witness could perceive; source event, identity certainty and limits |
+| Claim/report | What someone says happened, speaker/recipient, supporting observations or hearsay lineage; never silently promoted to world truth |
+| Unresolved issue | Debt, distrust, grievance or allegation; affected actors, evidence known to each, current status |
+| Consequence | Acting NPC, known grounds, present trigger/opportunity, accepted action and material effect; pending/activated/addressed status |
+
+Witnessing does not automatically broadcast a global reputation penalty. A loyal
+companion may stay silent, confront the player privately, or report later. That choice
+comes from the witness's own character, goals, relationship and risk. Repeated separate
+incidents can strengthen a pattern; repeated retellings of one incident are not multiple
+independent witnesses or fresh misconduct. Sleeping, distance and blocked sight matter.
+Identity uncertainty stays uncertainty: seeing someone take an item is not always knowing
+who they were, whether they owned it, or whether an agreement was violated.
+
+An accusation is not proof. The recipient may believe, doubt, investigate or exploit it
+according to their own knowledge and motivations. Record a mistaken or dishonest claim
+as a claim with its real source, not an invented historical event. The system does not
+need to reveal every hidden motive, but it must preserve the actual provenance internally.
+Delivery creates a perception observation, not a second autonomous receiving action.
+A recipient can choose a report-dependent response only at its next decision slot
+after delivery; an already-planned same-batch action cannot use the new report. There
+is no extra reaction outside the tick budget. Recipients may act separately on their
+own observations or other evidence.
+
+**Example, not a fixed authored branch:** the player repeatedly takes supplies after
+agreeing to pay; a companion perceives the agreement and the unpaid taking. The player
+benefits immediately. At the later passage negotiation, that companion might warn the
+guard. The guard now has a reason to doubt another promise and could demand collateral,
+refuse informal permission, or ask for restitution before offering help. The player can
+explain, dispute, repay, bargain, deceive again or seek another feasible approach in
+ordinary language. These are examples of intent, not a new restricted response menu.
+The resolver checks any actual transfer, permission or obstruction under existing rules.
+
+An unheard agreement or missing payment information changes what the companion can
+claim. If nothing establishes nonpayment, their belief is suspicion, not recorded fact.
+If no report or other evidence reaches the guard, this particular accusation cannot be
+justified by the guard secretly reading the full event log. Material traces or later
+discovery may still produce a separate, grounded consequence; unwitnessed does not mean
+permanently consequence-free.
+
+### Generating situations from history
+
+At a natural opportunity, the controller/narrative layer can compose an encounter from
+unresolved issues, available actors, their current goals and the primary objective.
+Each NPC proposes only its own contribution from its filtered view: intended counterpart,
+known issue/evidence, goal, trigger and permitted operations. No controller receives a
+combined packet of every participant’s private knowledge. The server associates accepted
+contributions with an encounter record, and narration describes committed visible events.
+The engine validates availability, knowledge boundaries and effects; it does not accept “the player is guilty, close all
+routes” as an arbitrary patch. A report, accusation, negotiation or refusal can form a
+new situation using existing mechanics instead of requiring a prewritten branch for
+every possible sequence of behavior.
+
+For the proof, this is an extension of the existing NPC controller using unresolved
+issues, not a separate omniscient director allowed to force all characters' decisions.
+It cannot spawn a witness retroactively, erase contrary evidence or change the objective
+just to punish the player. The player should be able to understand the connection when
+a consequence becomes visible: who accuses them, what incident is alleged and what now
+changes. No mandatory hidden numeric “morality score” governs every NPC.
+
+Consequences can be helpful as well as adverse: witnessed reliability can earn someone
+willing to vouch for the player. Their weight follows available evidence, severity,
+repetition and the acting NPC's interests; context is not reduced to a universal good/bad
+classification. Restitution can settle a specific debt without erasing memory. Further
+consequences require a distinct supported transition or new event, not merely that an
+issue remains unresolved. The server keys application by canonical issue ID, acting NPC
+and effect type/stage; a fresh model-generated proposal ID cannot charge the same penalty
+again. Existing payments/collateral are accounted for. An escalation records its new
+grounds and applies only the additional effect, rather than replaying the original cost. Keep room for disagreement and intentional character
+change rather than forcing every dishonest player into a predetermined villain ending.
+
+A new run resets its actors and consequence history unless cross-run continuity is an
+explicit mode. Resuming a save preserves it. Within a run, different behavior histories
+should change real permission, resources, relationships, actors' behavior or available
+approaches. Different wording, randomized names or a different trait label alone do not
+establish the intended replayability. A fixed seed with divergent choices is the clean
+first demonstration; procedural world variation can come after it.
+
 ## 7. The one-room proof
 
 The cathedral rescue remains possible later content. First prove the differentiator
@@ -328,6 +428,7 @@ label without an effect does not count. Avoid creating a new room just to justif
 | NPC history matters | Reach encounter after baseline versus repeated, perceived false alarms | Explainable behavioral difference grounded in the guard's own memory; no knowledge leak |
 | NPC development generalizes | Two different supported patterns of conduct/exposure, followed by a different supported situation in the same room | A shared-pipeline tendency/capability update influences new behavior; a one-off false-alarm memory branch alone does not pass |
 | Player development generalizes | Two different supported choice sequences, plus a context-changing counterexample | Comparable evidence-backed development where warranted, not matching trait names or fixed errands |
+| Witnessed delayed consequence | Compare the same repeated in-world misconduct with a witness, without that observation, and with observation but no report; later negotiate with the guard | Report-linked accusation occurs only when grounds reach that guard; permitted consequences affect the goal and cite the actual history |
 | History changes play | Return two behavior histories to the same encounter, with temporary states controlled, and use the same sentence | Meaningful difference attributable to history, with viable alternatives |
 | Semantic reliability | Paraphrase helpful toss, distraction and aggression against cloned state | Correct target/intent/effects; no accidental harm disguised as valid JSON |
 | Play value | Someone plays without the script or instruction to “show the trait” | They find text useful, understand the resulting character and can name a consequence of their approach |
@@ -338,6 +439,14 @@ not exact prose or one mandated guard action. Record surprising outcomes and ask
 what they meant before judging the model's interpretation. A cached or keyword-based
 fixture is useful for replay, but cannot verify these live-model claims.
 
+Extend the same-room history comparison with a later negotiation phase: the companion
+can be the witness and the guard the recipient, so this proof needs no third NPC or
+second room. Use witnessed misconduct and witnessed reliability as contrasting histories.
+For the causal control, replay a stored reporting choice as well as testing fresh NPC
+decisions; do not mistake a discretionary choice to stay silent for broken transmission.
+Successful accusation changes an actual permission/obligation/relationship or guard action
+in the room. A line saying “I heard about you” without consequence does not pass.
+
 ## 8. Persistence, visibility and direct interaction
 
 Entities have stable IDs and exactly one location: room/cell, holder/container, or
@@ -347,8 +456,10 @@ Each entity has typed physical properties and allowed transitions. Display text 
 invent an unsupported mechanical condition.
 
 Session storage includes world version/tick, object registry, actor states, per-actor
-knowledge/memories, development evidence, pending multi-step intent, objective and event
-sequence. Persist a tick/phase cursor, reaction-batch ID, per-NPC slot completion,
+knowledge/memories, claims with source lineage and delivery status, unresolved issues,
+consequence lifecycle/deduplication IDs, development evidence, pending multi-step intent,
+objective and event sequence. Persist a tick/phase cursor, reaction-batch ID, per-NPC
+slot completion,
 observation-delivery cursor and finalization marker atomically with each action. After
 reload, resume only unfinished slots, deliver each observation once and run end-of-tick
 updates once. Late responses carry the batch/slot identity and cannot replay a completed
@@ -404,6 +515,16 @@ Observe meaningful rule tests fail before implementing them. Additional adversar
   NPC's private memory cannot appear as evidence in that guard's decision.
 - Duplicate evidence, self-caused repair, reused commands and absent witnesses cannot
   produce false progress or relationships. An NPC can learn from its own resolved acts.
+- Witnessed and unwitnessed variants cannot create the same report-backed knowledge
+  without an independent evidence path. Repeating a rumor cannot multiply its evidence;
+  a reported allegation is not rewritten as a witnessed fact. Report delivery creates
+  an observation; the recipient responds only in its next decision slot, with no
+  extra same-tick controller action or private-context sharing.
+- A delivered accusation changes real gameplay when accepted; restitution closes the
+  specific obligation and suppresses its already-settled penalty without deleting history.
+  Save/load, revisiting the gate and regenerating a proposal with a new ID do not
+  duplicate the same issue/actor/effect-stage application. New escalation grounds
+  permit only the additional cost or state transition.
 - A gentle catch is not an impact attack; a harmful trajectory cannot claim to be harmless.
 - A multi-step sentence cannot cross the room before giving the guard its reaction;
   click movement follows the same cadence. A rejected player intent does not start a
@@ -430,8 +551,8 @@ before adding rooms, quests or art. Preserve unrestricted player vocabulary thro
 
 ## 10. Scope and remaining engineering choices
 
-The shared actor model, agent-controlled NPCs, reusable rules and proof-first priority
-are accepted direction. The exact room geometry, condition durations, capability catalog,
+The shared actor model, agent-controlled NPCs, reusable rules, witnessed delayed
+consequences, history-shaped scenarios and proof-first priority are accepted direction. The exact room geometry, condition durations, capability catalog,
 development thresholds and model-call budgets remain engineering/tuning choices to make
 concrete in the proof. No particular Mercy threshold or permanent ban is retained.
 
@@ -445,4 +566,6 @@ Self-review: an NPC “agent” that always follows one reaction script would no
 new requirement; an unconstrained model rewriting state would lose the rules. This plan
 places choice in the controller and consequences in the engine, then tests both. Evidence
 IDs alone do not validate psychological inference, and a fatigue label without changed
-perception/choice has no gameplay meaning. Both are explicit proof targets.
+perception/choice has no gameplay meaning. Both are explicit proof targets. A penalty with no knowledge/evidence path is arbitrary;
+a story that changes only its dialogue is not meaningful scenario variation. The
+witness/report control tests and actual-goal consequences address those failure modes.
