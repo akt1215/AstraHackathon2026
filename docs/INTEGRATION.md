@@ -1,3 +1,5 @@
+> Historical scope of the earlier dialogue port. The object/interaction port described below as future work is now implemented; see [current integration](WORLD_INTEGRATION_PLAN.md) and [README](../README.md).
+
 # Notebook World integration into Tilth
 
 10 September 2026. Based on shresthkapoor7/tilth commit `d40bf09`; Notebook World checkpoint `dc6eee2`. All of Tilth's existing history is retained. This branch is a proposed team integration, not a change to the teammate's main branch.

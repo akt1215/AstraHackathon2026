@@ -1,6 +1,6 @@
 # Tilth
 
-This integration branch adds Notebook World’s bottom dialogue, contextual thoughts and persistent witnessed NPC reactions while retaining Tilth’s world, character creator and weapon animations. See [integration scope, validation and merge instructions](docs/INTEGRATION.md). The object/law sandbox is the next proposed port; it is not integrated yet.
+Tilth is the active game base. This integration adds unrestricted action text, deterministic objects and consequences, and stateful NPC decisions to its pixel world, continuous movement, combat and character creator. See [the integration design](docs/WORLD_INTEGRATION_PLAN.md). The game concept is Akito Yamauchi’s; teammate code and art retain their source attribution.
 
 A 2D pixel-art RPG prototype where exploration and learned techniques can lead to AI-generated quests, character changes, and optional awakenings.
 
@@ -49,16 +49,22 @@ Let each action finish, then start the next within **1.6 seconds**. Cooldown-blo
 
 A staged boss battle also previews the customized player attacking and a healer casting, with floating combat indicators. Overworld attacks now deal damage using facing, weapon range, and wall checks. Real multiplayer PvP, simulated projectile travel, and generated skill damage are still not implemented.
 
+### Act in a persistent world
+
+Your first goal is to help Clover recover and earn Rowan’s support. Click nearby objects to inspect, pick up, open, give or drop them, or describe an action in your own words. The model proposes bounded effects; local rules validate reach, collision, ownership and resources before applying anything. Throwing, care, reports and repayment can leave memories with the characters who actually observe them. Closed containers and privately held items do not reveal their clues.
+
+NPCs have fatigue, attention and persistent memories. Friendly replies run in the background on new observations; walking stays local and does not ask the model for every step. Hostile pursuit and damage remain under Tilth’s combat rules. The action panel shows real possessions, coins, obligations and your current goal. The existing equipment menu remains a visual customization preview.
+
 ### Receive AI-generated content
 
-The server requests structured content from the OpenAI Responses API. Results are validated as data; generated JavaScript is never executed.
+World actions and NPC decisions use the logged-in Claude CLI by default for local testing. Optional character, quest and awakening generation retains Tilth’s OpenAI adapter. Results are validated as data; generated JavaScript is never executed.
 
 | Content | Trigger |
 | --- | --- |
-| NPC reaction | A landed hit, at most once per character per 30 seconds of active play; replies are grounded in that hit |
+| NPC decision | A first sighting or meaningful new observation; bounded actor view, background reply |
 | Character or name | Explicit creator button: description, random character, or name |
-| First quest | Speak to Rowan near the inn |
-| Follow-up quest | Complete the current quest; one new request is queued automatically |
+| Optional quest | Explicitly ask for an optional task in the quest panel |
+| Follow-up quest | Optional quest runs can queue one follow-up; the main goal does not start an endless quest chain |
 | Replacement quest | Choose “Request a different task” on an offered or active quest |
 | Awakening offer | Three distinct meaningful events since the previous evaluation, with no unresolved offer/job |
 | Journal reflection | Six new meaningful events, summarized in a batch |
@@ -78,7 +84,9 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173/**. The authored world, creator, and combat previews work without an API key.
+Open **http://localhost:5173/**. Direct interactions, the manual creator and combat work without an API key. World narration uses a locally installed, logged-in `claude` executable; `CLAUDE_BIN` can select its absolute path.
+
+Set `ASTRA_PROVIDER=offline` for direct play only. Once ready to switch, set `ASTRA_PROVIDER=openai`, `ASTRA_MODEL` to an available model, and `OPENAI_API_KEY` in the ignored `.env`. World narration has a bounded queue of two active and eight waiting requests; it does not share the optional-content generation budget. Claude CLI requests are restricted to loopback clients. Hosted narration requires the OpenAI provider.
 
 For AI generation, copy `.env.example` to `.env` if you do not already have one:
 
@@ -105,7 +113,7 @@ Restart the dev server after configuring it. The model must be available to your
 | WASD / arrow keys | Move |
 | Space / 1, Q, E, R | Selected weapon’s attacks |
 | Shift | Dodge roll |
-| 2 / 3 / 4 | Guard, rally, and potion visual previews |
+| 2 / 3 / 4 | Guard, rally effect, and potion |
 | 5 | Activate an accepted awakening’s visual skill; keyboard shortcut only |
 | Esc | Open the menu, return to it, or resume |
 | C | Create/edit character |
@@ -124,7 +132,7 @@ On mobile, use the movement pad, skill buttons, Talk button, and in-game menu. M
 
 Character choices, gear selection, discoveries, learned combos, journal history, quests, generation jobs, and awakening decisions persist in this browser’s `localStorage`. Sound preference is stored separately.
 
-Refreshing returns the character to the outpost rather than restoring a position inside potentially changed geometry. Active animations and the staged battle reset. Saves are local to the browser and are not synced between devices.
+Player and NPC positions, health, object locations, world conditions, observations and obligations are also saved. Older Tilth profiles and quest histories are preserved when this world state is first added. Active animations and the staged battle reset. Saves are local to this browser and origin; changing host or port does not migrate them, and they are not synced between devices.
 
 ## Engine structure
 
@@ -146,7 +154,7 @@ See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, 
 ## Current limits
 
 - No multiplayer, accounts, server-authoritative gameplay, or cloud saves.
-- NPC hostility and retaliation are implemented. Assistance encounters and good/evil progression are not; striking a character records a fact but does not automatically assign moral traits.
+- NPC hostility, assistance and witnessed obligations are implemented. Character evidence is modest and bounded by supported rules; arbitrary new mechanics and hard moral skill trees are not implemented.
 - Quest variety is bounded by three rooms and three combos; new quest titles do not create new playable locations or mechanics.
 - AI character generation selects supported features and may add custom pixel details. Weapon starter moves are authored, not invented by the LLM.
 - Appearance attachments use bounded pixel rectangles; generated awakening skills use supported visual primitives.
@@ -158,6 +166,7 @@ See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, 
 
 ```sh
 npm test
+npm run typecheck
 npm run build
 ```
 
@@ -168,7 +177,7 @@ The automated tests cover collision, combos, weapon poses, character persistence
 
 `railway.json` sets the build command to `npm run build`, start command to `npm start`, and health check to `/api/generation/status`. The Node server binds to `0.0.0.0` on Railway's `PORT`. If you have a custom start command in Railway, use `npm start` rather than a static file server or `vite preview`.
 
-Set `OPENAI_API_KEY` and `OPENAI_MODEL` in the service's Railway Variables. The model must be available to your API project. Local `.env` files are not deployed or automatically loaded by the production server. Optionally set `OPENAI_MAX_GENERATIONS` (default 20 attempts per server process; shared by all visitors and reset on restart).
+Set `OPENAI_API_KEY` and `OPENAI_MODEL` in the service's Railway Variables. The model must be available to your API project. Local `.env` files are ignored by Git; the local start script loads one when present. Optionally set `OPENAI_MAX_GENERATIONS` (default 20 attempts per server process; shared by all visitors and reset on restart).
 
 Deploy the updated source, then check `/api/generation/status`: it should return JSON `{"configured":true}`, not the game HTML. This confirms configuration is present, not model access or billing validity; test a character name request to verify the provider connection.
 
@@ -177,6 +186,6 @@ Deploy the updated source, then check `/api/generation/status`: it should return
 
 Ash Raider and Cinder Sentry patrol the southern road and attack when approached. Lunara, Clover and Foxglove wander near their homes and defend themselves when struck. Rowan is a protected quest giver: attacks cannot damage or provoke him, and he does not retaliate. Face a target and use Space, Q, E or R; combos deal stronger hits. Walls block attacks, including ranged weapon strikes. Orange wind-up rings warn of an incoming strike: move away or roll with Shift. Guard reduces damage briefly, and a potion (4) heals 40 HP with an eight-second cooldown.
 
-Characters pursue using collision-checked paths, calm down after disengagement, and yield when their health reaches zero. They recover after 18 seconds of active outdoor play. Player defeat restores health at the outpost. Menus, dialogue, hidden tabs and interiors pause outdoor combat. Combat health and actor positions reset on reload; recorded provocations and received AI dialogue remain in the journal.
+Characters pursue using collision-checked paths, calm down after disengagement, and yield when their health reaches zero. They recover after 18 seconds of active outdoor play. Player defeat restores health at the outpost. Menus, dialogue, hidden tabs and interiors pause outdoor combat. Combat health and actor positions now persist with the world save; observations and received dialogue remain in the journal.
 
-A struck character immediately protests using an authored line. When AI is connected, a separate bounded request generates a short personal response; it never controls damage or movement. Replies arrive in overhead speech bubbles without pausing combat and are discarded if the character has already yielded or disengaged. Provider failures keep the authored response and show an availability message. These requests share the server's existing per-process generation budget with quests and character creation.
+A struck character immediately protests using an authored line. Stateful friendly NPC decisions use the world narrator and their filtered observations. Combat continues locally, and delayed responses are discarded when the room or character's combat eligibility changes. Provider failures leave direct gameplay available and can be retried using Reconnect.
