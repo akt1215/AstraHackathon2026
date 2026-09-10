@@ -1,14 +1,17 @@
 """Render the exported GLBs, not the authoring scene, for geometry review."""
 import bpy
+import sys
 from pathlib import Path
 from mathutils import Vector
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/'art/blender/previews'
 OUT.mkdir(exist_ok=True)
-for name in ['sofa','bed','dining-table','dining-chair','kitchen','window-frame']:
+requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else ['sofa','bed','dining-table','dining-chair','kitchen','window-frame','fridge','bookshelf','fridge-rear']
+for name in requested:
+    asset_name=name.removesuffix('-rear')
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
-    bpy.ops.import_scene.gltf(filepath=str(ROOT/'client/public/life-assets/cinematic'/(name+'.glb')))
+    bpy.ops.import_scene.gltf(filepath=str(ROOT/'client/public/life-assets/cinematic'/(asset_name+'.glb')))
     scene=bpy.context.scene
     scene.render.engine='CYCLES';scene.cycles.samples=24
     scene.cycles.use_denoising=True
@@ -23,7 +26,8 @@ for name in ['sofa','bed','dining-table','dining-chair','kitchen','window-frame'
         obj.rotation_euler=(Vector((0,0,.7))-obj.location).to_track_quat('-Z','Y').to_euler()
     camera=bpy.data.cameras.new('Review camera');obj=bpy.data.objects.new('Review camera',camera);scene.collection.objects.link(obj)
     obj.location=(3.7,5.5,3.4) if name!='window-frame' else (3.5,6,3.0)
-    target=Vector((0,0,.65 if name not in ['kitchen','window-frame'] else 1.05))
+    if name.endswith('-rear'): obj.location=(-3.7,-5.5,3.4)
+    target=Vector((0,0,.65 if asset_name not in ['kitchen','window-frame','fridge','bookshelf'] else 1.05))
     obj.rotation_euler=(target-obj.location).to_track_quat('-Z','Y').to_euler()
     camera.type='ORTHO';camera.ortho_scale=3.7 if name!='dining-chair' else 1.7
     scene.camera=obj

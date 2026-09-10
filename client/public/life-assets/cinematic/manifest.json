@@ -113,7 +113,7 @@
       "meshCount": 5,
       "triangles": 8136,
       "notes": "Table only; instantiate chairs separately at authoritative static fixture coordinates. Tabletop0.86m.",
-      "sha256": "df39411ca76bcd36743334caaf44f3653296c3425c128d6b14d6412ab78bfabd"
+      "sha256": "5f9a5df7c45fe9967f1aa45ceee26e7ed356cb49688a1cf456f6090fae0f7aa6"
     },
     {
       "file": "dining-chair.glb",
@@ -189,7 +189,7 @@
       "meshCount": 9,
       "triangles": 25740,
       "notes": "Front-Z; rotate pi aroundY for world+Z front. Includes shaker joinery, open sink, gooseneck tap and floating shelves. Counter0.9m. Handles exceed front envelope by0.05m.",
-      "sha256": "d37c367611eb2434deba684f09976551bc948325e8cdeb49b5fabe93e6690b97"
+      "sha256": "1ae06713234b8e2b58be0337961fa163d737fd94bc34ffaff56fc1ef9612ff3e"
     },
     {
       "file": "window-frame.glb",
@@ -226,6 +226,85 @@
       "triangles": 3380,
       "notes": "Floor-centered at sill base; renderer positions at window opening bottom. 3.02m wide\u00d72.4m high. Open panes intentionally receive renderer city view/glazing.",
       "sha256": "aebb89e2ce0c4d0d9c58652193ca7f783ce8e8500b21f399fd2aa11cbdca73a6"
+    },
+    {
+      "file": "fridge.glb",
+      "nominalFootprint": [
+        0.9,
+        0.9
+      ],
+      "bounds": {
+        "min": [
+          -0.44849997758865356,
+          0.0,
+          -0.44999998807907104
+        ],
+        "max": [
+          0.44850000739097595,
+          1.8700000047683716,
+          0.4390000104904175
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ochre",
+        "cinematic.fabric.linen",
+        "cinematic.metal.iron",
+        "cinematic.metal.steel",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 5,
+      "triangles": 13084,
+      "notes": "Compact French-door stainless refrigerator; entire authored shell, handles, vents and rear cooling coils fit .9m footprint. Local front-Z; top1.87m.",
+      "sha256": "cd005918bcdae98ef557f60997d2be4bd21435ff6176b41147d9492c187b9889"
+    },
+    {
+      "file": "bookshelf.glb",
+      "nominalFootprint": [
+        1.8,
+        0.7
+      ],
+      "bounds": {
+        "min": [
+          -0.8999999761581421,
+          0.0,
+          -0.3499999940395355
+        ],
+        "max": [
+          0.8999999761581421,
+          2.299999952316284,
+          0.3499999940395355
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ivory",
+        "cinematic.ceramic.ochre",
+        "cinematic.ceramic.sage",
+        "cinematic.fabric.linen",
+        "cinematic.fabric.sage",
+        "cinematic.fabric.terracotta",
+        "cinematic.metal.brass",
+        "cinematic.paint.sage",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 10,
+      "triangles": 36840,
+      "notes": "Local width1.8 depth.7 height2.3; front-Z. Recessed lower cupboards, molded shelves, varied bound books, stoneware, nested bowls and framed artwork; all decor and knobs within cabinet footprint.",
+      "sha256": "10149bd1eafa18cc127a884b40e5ce1013ee0c8e73b7a9cce268670a1f0dba0b"
     }
   ]
 }

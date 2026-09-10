@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -12,7 +13,9 @@ const manifest = JSON.parse(await readFile(resolve(directory, 'manifest.json'), 
 const engine = new NullEngine();
 for (const asset of manifest.assets) {
   const scene = new Scene(engine);
-  const container = await LoadAssetContainerAsync(new Uint8Array(await readFile(resolve(directory, asset.file))), scene, { pluginExtension: '.glb' });
+  const bytes = await readFile(resolve(directory, asset.file));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), asset.sha256, `${asset.file}: hash differs from manifest`);
+  const container = await LoadAssetContainerAsync(new Uint8Array(bytes), scene, { pluginExtension: '.glb' });
   container.addAllToScene();
   const geometry = container.meshes.filter(mesh => mesh.getTotalVertices() > 0);
   assert.equal(geometry.length, asset.meshCount);

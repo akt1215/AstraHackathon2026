@@ -8,6 +8,7 @@ import math
 import json
 import hashlib
 import random
+import sys
 from pathlib import Path
 from mathutils import Vector
 
@@ -36,7 +37,7 @@ def material(key, color, roughness=.65, metallic=0):
 for args in [('fabric.sage','#747a57',.91),('fabric.linen','#ddd0b5',.94),
              ('fabric.terracotta','#945239',.88),('fabric.charcoal','#434741',.9),
              ('wood.walnut','#65442e',.4),('wood.oak','#98714e',.5),
-             ('metal.iron','#242b2a',.33,.8),('metal.brass','#af8750',.28,.75),
+             ('metal.iron','#242b2a',.33,.8),('metal.steel','#9aa49e',.38,.93),('metal.brass','#af8750',.28,.75),
              ('ceramic.ivory','#e7dac1',.3),('ceramic.ochre','#ae7649',.42),('ceramic.sage','#74795b',.32),('stone.cream','#b7a792',.38),
              ('paint.sage','#454f41',.59),('seam.sage','#535940',.95),
              ('seam.linen','#b7a98d',.95),('glass','#adcad0',.12)]:
@@ -275,6 +276,22 @@ def chair():
         tube('Steam bent backrest rail',points,.031,'wood.oak')
     export('dining-chair',[.58,.54],'Seat0.55m; back+Z, faces-Z. Rounded seat, splayed tapered legs, curved steam-bent back rails.')
 
+
+def pottery(name,x,y,z,radius,height,color='ceramic.ivory',shape='jar'):
+    if shape=='bowl':
+        profile=[(.27,0),(.60,.07),(.84,.37),(1,1),(.94,1.02),(.78,.43),(.53,.16),(.27,.12)]
+    else:
+        profile=[(.68,0),(.91,.07),(1,.28),(.96,.69),(.72,.88),(.70,1),(.62,1),(.62,.86),(.80,.65),(.83,.25),(.65,.10)]
+    verts=[];faces=[];segments=32
+    for r,h in profile:
+        for j in range(segments):
+            angle=j*math.tau/segments;verts.append((x+radius*r*math.cos(angle),y+height*h,z+radius*r*math.sin(angle)))
+    for ring in range(len(profile)-1):
+        for j in range(segments):
+            a=ring*segments+j;b=ring*segments+(j+1)%segments
+            faces.append((a,a+segments,b+segments,b))
+    return mesh(name,verts,faces,color)
+
 def kitchen():
     begin();w=3;d=.69
     box('Recessed toe kick',(2.93,.12,.56),(0,.065,.035),'wood.walnut',.005)
@@ -300,20 +317,6 @@ def kitchen():
         box('Open oak kitchen shelf',(2.96,.054,.29),(0,y,.19),'wood.oak',.014)
         for x in [-1.1,1.1]:rod('Shelf iron bracket',(x,y-.18,.322),(x,y-.025,.322),.012,'metal.iron')
     # A deliberately mixed pantry, kept entirely on the architectural shelves.
-    def pottery(name,x,y,z,radius,height,color='ceramic.ivory',shape='jar'):
-        if shape=='bowl':
-            profile=[(.27,0),(.60,.07),(.84,.37),(1,1),(.94,1.02),(.78,.43),(.53,.16),(.27,.12)]
-        else:
-            profile=[(.68,0),(.91,.07),(1,.28),(.96,.69),(.72,.88),(.70,1),(.62,1),(.62,.86),(.80,.65),(.83,.25),(.65,.10)]
-        verts=[];faces=[];segments=32
-        for r,h in profile:
-            for j in range(segments):
-                angle=j*math.tau/segments;verts.append((x+radius*r*math.cos(angle),y+height*h,z+radius*r*math.sin(angle)))
-        for ring in range(len(profile)-1):
-            for j in range(segments):
-                a=ring*segments+j;b=ring*segments+(j+1)%segments
-                faces.append((a,a+segments,b+segments,b))
-        return mesh(name,verts,faces,color)
     for i,(x,radius,height,color) in enumerate([(-1.25,.073,.21,'ceramic.ivory'),(-1.055,.060,.16,'ceramic.ochre'),(-.88,.067,.19,'ceramic.sage')]):
         pottery('Lidded spice crock',x,1.507,.18,radius,height,color)
         rod('Crock wooden lid',(x,1.507+height,.18),(x,1.521+height,.18),radius*.73,'wood.walnut',radius*.73,24)
@@ -358,6 +361,103 @@ def window():
         rod('Window latch lever',(x,1.19,-.113),(x,1.275,-.113),.008,'metal.brass')
     export('window-frame',[w,.27],'Floor-centered at sill base; renderer positions at window opening bottom. 3.02m wide×2.4m high. Open panes intentionally receive renderer city view/glazing.')
 
-sofa();bed();table();chair();kitchen();window()
+
+def fridge():
+    begin()
+    for x in [-.34,.34]:
+        for z in [-.30,.30]:rod('Refrigerator adjustable foot',(x,0,z),(x,.075,z),.037,'metal.iron',.029)
+    box('Stainless cabinet shell',(.878,1.80,.78),(0,.94,.015),'metal.steel',.026)
+    box('Rolled top cap',(.878,.03,.79),(0,1.855,.015),'metal.steel',.014)
+    # The door fronts, handles, rear cooling coils and side panels all fit .9m.
+    for x in [-.218,.218]:
+        box('French door gasket',(.426,1.177,.039),(x,1.266,-.387),'metal.iron',.011)
+        box('Brushed steel upper door',(.423,1.165,.052),(x,1.269,-.397),'metal.steel',.019)
+        hx=x*.20
+        for y in [1.03,1.48]:rod('Handle curved standoff',(hx,y,-.420),(hx,y,-.442),.009,'metal.steel')
+        rod('Vertical fridge pull',(hx,1.03,-.442),(hx,1.48,-.442),.008,'metal.steel',.008,20)
+    box('Lower drawer gasket',(.866,.495,.039),(0,.421,-.387),'metal.iron',.012)
+    box('Freezer drawer',(.86,.482,.052),(0,.422,-.397),'metal.steel',.020)
+    for x in [-.22,.22]:rod('Freezer pull mount',(x,.58,-.420),(x,.58,-.441),.009,'metal.steel')
+    rod('Horizontal drawer pull',(-.22,.58,-.441),(.22,.58,-.441),.008,'metal.steel',.008,20)
+    box('Bottom ventilation recess',(.815,.10,.008),(0,.122,-.38),'metal.iron',.006)
+    for i in range(15):box('Kick grille fin',(.037,.005,.012),(-.37+i*.053,.115,-.39),'metal.steel',.002)
+    for side in [-1,1]:
+        box('Inset side panel',(.007,1.59,.65),(side*.441,.95,.025),'metal.steel',.004)
+        for z in [-.265,.315]:rod('Side panel edge bead',(side*.446,.17,z),(side*.446,1.725,z),.0025,'metal.iron')
+        for y in [.225,1.68]:
+            for z in [-.262,.31]:rod('Side service screw',(side*.444,y,z),(side*.448,y,z),.007,'metal.iron',.007,12)
+    box('Rear service access panel',(.69,1.25,.008),(0,.83,.409),'metal.iron',.015)
+    for x in [-.325,.325]:rod('Rear condenser riser',(x,.25,.43),(x,1.44,.43),.009,'metal.iron')
+    for i in range(13):rod('Rear condenser coil',(-.322,.28+i*.085,.43),(.322,.28+i*.085,.43),.007,'metal.iron')
+    for x in [-.3,.3]:
+        for y in [.24,1.43]:rod('Rear service screw',(x,y,.414),(x,y,.424),.008,'metal.steel')
+    box('Small paper grocery note',(.132,.18,.003),(.19,1.20,-.426),'fabric.linen',.002)
+    for i in range(4):box('Note pencil mark',(.087-i*.008,.002,.001),(.19,1.23-i*.026,-.428),'wood.walnut',0)
+    rod('Note magnet',(.19,1.286,-.43),(.19,1.286,-.438),.016,'ceramic.ochre',.016,20)
+    export('fridge',[.9,.9],'Compact French-door stainless refrigerator; entire authored shell, handles, vents and rear cooling coils fit .9m footprint. Local front-Z; top1.87m.')
+
+
+def bookshelf():
+    begin();w=1.8;d=.7
+    box('Solid bookcase plinth',(1.79,.12,.69),(0,.06,0),'wood.walnut',.015)
+    box('Plinth raised molding',(1.80,.045,.7),(0,.145,0),'wood.oak',.008)
+    box('Paneled cabinet back',(1.74,2.07,.035),(0,1.193,.323),'wood.walnut',.004)
+    for x in [-.855,.855]:
+        box('Bookcase face frame stile',(.079,2.07,.69),(x,1.193,0),'wood.walnut',.011)
+        box('Front stile bead',(.015,2.025,.019),(x,1.193,-.338),'wood.oak',.003)
+    box('Bookcase crown lower',(1.80,.05,.70),(0,2.255,0),'wood.oak',.009)
+    box('Bookcase crown',(1.79,.025,.695),(0,2.2875,0),'wood.walnut',.007)
+    for y in [.71,1.195,1.68,2.165]:
+        box('Solid bookcase shelf',(1.64,.050,.66),(0,y,.007),'wood.oak',.008)
+        box('Shelf front nosing',(1.64,.053,.022),(0,y,-.329),'wood.walnut',.005)
+    for x in [-.42,.42]:
+        box('Lower door recessed panel',(.707,.415,.023),(x,.43,-.307),'wood.walnut',.006)
+        for dx in [-.381,.381]:box('Cabinet face stile',(.053,.50,.035),(x+dx,.43,-.320),'wood.walnut',.005)
+        for y in [.205,.655]:box('Cabinet face rail',(.708,.05,.035),(x,y,-.320),'wood.walnut',.005)
+        rod('Cabinet brass knob',(x*.2,.58,-.336),(x*.2,.58,-.349),.012,'metal.brass',.014,16)
+    def book(x,y,width,height,depth,cover,lean=0):
+        before=set(bpy.context.scene.objects)
+        box('Book page block',(width-.009,height-.013,depth-.013),(x,y+height/2,-.10),'ceramic.ivory',.002)
+        for side in [-1,1]:box('Book hardback board',(.006,height,depth),(x+side*(width/2-.003),y+height/2,-.10),cover,.002)
+        box('Rounded book spine',(width,height,.012),(x,y+height/2,-.10-depth/2),cover,.004)
+        for yy in [.055,height-.055]:box('Spine foil rule',(width*.63,.004,.002),(x,y+yy,-.108-depth/2),'metal.brass',.001)
+        if lean:
+            from_center=Vector(p((x,y,-.1)))
+            # Existing mathutils Vector avoids any nonstandard dependency.
+            for obj in set(bpy.context.scene.objects)-before:
+                offset=obj.location-from_center
+                xx=offset.x*math.cos(lean)+offset.z*math.sin(lean)
+                zz=-offset.x*math.sin(lean)+offset.z*math.cos(lean)
+                obj.location=from_center+Vector((xx,offset.y,zz));obj.rotation_euler.y=lean
+    covers=['paint.sage','fabric.terracotta','wood.walnut','fabric.linen','ceramic.ochre']
+    for row,y in enumerate([.739,1.224,1.709]):
+        x=-.752
+        count=10 if row==0 else 6 if row==1 else 8
+        for i in range(count):
+            width=random.uniform(.046,.070);height=random.uniform(.25,.365);depth=random.uniform(.195,.255)
+            book(x+width/2,y,width,height,depth,covers[(i+row*2)%len(covers)],.08 if i==count-1 else 0)
+            x+=width+.009
+    # Mixed arrangements leave visible negative space rather than filling every shelf identically.
+    for i in range(3):
+        box('Horizontally stacked book',(.28,.039,.235),(.29,.759+i*.043,-.08),covers[i],.006)
+        box('Horizontal page edge',(.268,.026,.002),(.29,.759+i*.043,-.20),'ceramic.ivory',.001)
+    pottery('Shelf stoneware vase',.63,.739,-.015,.101,.30,'ceramic.sage')
+    pottery('Small ochre bowl',.18,1.224,-.07,.125,.09,'ceramic.ochre','bowl')
+    box('Leaning photo frame',(.24,.29,.025),(.58,1.384,.055),'wood.walnut',.008)
+    box('Photo ivory mat',(.207,.255,.008),(.58,1.384,.037),'fabric.linen',.002)
+    box('Abstract picture',(.163,.199,.004),(.58,1.384,.031),'fabric.sage',.002)
+    pottery('Ivory shelf vessel',.19,1.709,.025,.085,.265,'ceramic.ivory')
+    for i in range(2):pottery('Nested shelf bowl',.58,1.713+i*.043,-.06,.133-i*.015,.083,'ceramic.sage','bowl')
+    export('bookshelf',[w,d],'Local width1.8 depth.7 height2.3; front-Z. Recessed lower cupboards, molded shelves, varied bound books, stoneware, nested bowls and framed artwork; all decor and knobs within cabinet footprint.')
+
+
+builders={'sofa':sofa,'bed':bed,'dining-table':table,'dining-chair':chair,'kitchen':kitchen,'window-frame':window,'fridge':fridge,'bookshelf':bookshelf}
+requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(builders)
+for key in requested: builders[key]()
+if len(requested) != len(builders) and (OUT/'manifest.json').exists():
+    previous=json.loads((OUT/'manifest.json').read_text())['assets']
+    changed={asset['file'] for asset in ASSETS}
+    ASSETS.extend(asset for asset in previous if asset['file'] not in changed)
+ASSETS.sort(key=lambda asset: list(builders).index(asset['file'].removesuffix('.glb')))
 (OUT/'manifest.json').write_text(json.dumps({'generator':'art/blender/build_cinematic_kit.py','blender':bpy.app.version_string,'coordinateSystem':'glTF right-handed Y-up; local front -Z; floor-centered origin','assets':ASSETS},indent=2)+'\n')
 print('KIT_COMPLETE',len(ASSETS),flush=True)
