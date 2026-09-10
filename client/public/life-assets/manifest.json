@@ -1,0 +1,159 @@
+{
+  "creator": "Quaternius",
+  "retrieved": "2026-09-10",
+  "format": "glTF 2.0 binary, self-contained",
+  "upAxis": "Y",
+  "forwardAxisInSource": "+Z",
+  "units": "meters (approximately 1.85 tall)",
+  "notes": [
+    "Repacked original embedded-base64 glTF as binary GLB; geometry, materials, rig, and clips unchanged.",
+    "No source Sit animation; implement seating with procedural posing or a separately licensed clip.",
+    "Babylon glTF import adds a handedness conversion root; account for this when orienting characters."
+  ],
+  "models": [
+    {
+      "file": "casual-man.glb",
+      "sourceFile": "Casual_2.gltf",
+      "sourceUrl": "https://drive.google.com/file/d/1Jn7kULNmrtqP8BUUL19h8MhbdOnwPFhv/view",
+      "pack": "men",
+      "license": "CC0-1.0",
+      "sha256": "c0f29d4e7af1be4b573ceaa0634183b0622cc48295187e274a3acab88ca64afc",
+      "bytes": 1611924,
+      "bones": 62,
+      "animations": [
+        "Death",
+        "Gun_Shoot",
+        "HitRecieve",
+        "HitRecieve_2",
+        "Idle",
+        "Idle_Gun",
+        "Idle_Gun_Pointing",
+        "Idle_Gun_Shoot",
+        "Idle_Neutral",
+        "Idle_Sword",
+        "Interact",
+        "Kick_Left",
+        "Kick_Right",
+        "Punch_Left",
+        "Punch_Right",
+        "Roll",
+        "Run",
+        "Run_Back",
+        "Run_Left",
+        "Run_Right",
+        "Run_Shoot",
+        "Sword_Slash",
+        "Walk",
+        "Wave"
+      ],
+      "bindPoseBounds": {
+        "min": [
+          -0.8377335071563721,
+          -0.0013974867761135101,
+          -0.1680048406124115
+        ],
+        "max": [
+          0.8377335071563721,
+          1.856579065322876,
+          0.2866884469985962
+        ]
+      }
+    },
+    {
+      "file": "hoodie-man.glb",
+      "sourceFile": "Casual_Hoodie.gltf",
+      "sourceUrl": "https://drive.google.com/file/d/1em1So1xwwQNfHJYMvzKcXkZllvtxpKP5/view",
+      "pack": "men",
+      "license": "CC0-1.0",
+      "sha256": "d647ee4ca1c66008bca70aafcc0315b62c8ac0a6bc0f611e369569b43d0b214b",
+      "bytes": 1646732,
+      "bones": 62,
+      "animations": [
+        "Death",
+        "Gun_Shoot",
+        "HitRecieve",
+        "HitRecieve_2",
+        "Idle",
+        "Idle_Gun",
+        "Idle_Gun_Pointing",
+        "Idle_Gun_Shoot",
+        "Idle_Neutral",
+        "Idle_Sword",
+        "Interact",
+        "Kick_Left",
+        "Kick_Right",
+        "Punch_Left",
+        "Punch_Right",
+        "Roll",
+        "Run",
+        "Run_Back",
+        "Run_Left",
+        "Run_Right",
+        "Run_Shoot",
+        "Sword_Slash",
+        "Walk",
+        "Wave"
+      ],
+      "bindPoseBounds": {
+        "min": [
+          -0.8377335071563721,
+          -0.004176006652414799,
+          -0.09113743901252747
+        ],
+        "max": [
+          0.8377335071563721,
+          1.8661867380142212,
+          0.2866884469985962
+        ]
+      }
+    },
+    {
+      "file": "casual-woman.glb",
+      "sourceFile": "Casual.gltf",
+      "sourceUrl": "https://drive.google.com/file/d/18b3WwlrwrFYWAM7BcnjWeIxKJyxAQiGh/view",
+      "pack": "women",
+      "license": "CC0-1.0",
+      "sha256": "5ca77eac451a73665616455a75e6d9a4980b9f839ba3d049f877d8855aef45d2",
+      "bytes": 1668348,
+      "bones": 62,
+      "animations": [
+        "Death",
+        "Gun_Shoot",
+        "HitRecieve",
+        "HitRecieve_2",
+        "Idle",
+        "Idle_Gun",
+        "Idle_Gun_Pointing",
+        "Idle_Gun_Shoot",
+        "Idle_Neutral",
+        "Idle_Sword",
+        "Interact",
+        "Kick_Left",
+        "Kick_Right",
+        "Punch_Left",
+        "Punch_Right",
+        "Roll",
+        "Run",
+        "Run_Back",
+        "Run_Left",
+        "Run_Right",
+        "Run_Shoot",
+        "Sword_Slash",
+        "Walk",
+        "Wave"
+      ],
+      "bindPoseBounds": {
+        "min": [
+          -0.8250574469566345,
+          -0.008566934615373611,
+          -0.09946297109127045
+        ],
+        "max": [
+          0.8250574469566345,
+          1.8434743881225586,
+          0.2708127796649933
+        ]
+      }
+    }
+  ]
+}
