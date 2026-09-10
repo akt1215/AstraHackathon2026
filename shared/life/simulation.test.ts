@@ -58,6 +58,28 @@ describe('continuous life simulation', () => {
     expect(restored.state().version).toBe(version);
     advance(restored, 20); expect(player(restored).needs.energy).toBeGreaterThan(player(sim).needs.energy);
   });
+  it('lets the player speak from anywhere, to anyone, whatever they are doing', () => {
+    const sim = new LifeSimulation();
+    // Opposite corner of the home from June, who is mid-activity, and Leo, who is asleep.
+    const corner = [{ x: 7.5, z: 9.2 }, { x: 8.5, z: 8.6 }, { x: 6.5, z: 9.2 }].find(point => walkable(sim.state(), point))!;
+    command(sim, { kind: 'walk', ...corner }); advance(sim, 30);
+    const far = sim.state().residents.find(r => r.id === 'june')!;
+    expect(Math.hypot(player(sim).x - far.x, player(sim).z - far.z), 'genuinely far away').toBeGreaterThan(5);
+    const request = sim.beginTalk('june', 'I punched you.');
+    expect(sim.applyReaction(request, { action: 'decline', speech: 'Do not touch me.', act: 'physical' })).toBe(true);
+    expect(sim.state().residents.find(r => r.id === 'june')!.hurt).toBeGreaterThan(20);
+  });
+
+  it('supersedes a reply still in flight rather than refusing the next thing you say', () => {
+    const sim = new LifeSimulation();
+    const first = sim.beginTalk('june', 'Are you there?');
+    const second = sim.beginTalk('leo', 'What about you?');
+    expect(second.targetId).toBe('leo');
+    // The abandoned one no longer applies; the current one does.
+    expect(sim.applyReaction(first, { action: 'accept_chat', speech: 'Too late.' })).toBe(false);
+    expect(sim.applyReaction(second, { action: 'accept_chat', speech: 'I am here.' })).toBe(true);
+  });
+
   it('makes kindness land on the world too, not only cruelty', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);

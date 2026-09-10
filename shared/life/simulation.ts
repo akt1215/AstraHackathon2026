@@ -356,8 +356,10 @@ export class LifeSimulation {
     const player = this.resident('player'), target = this.resident(targetId);
     if (target.id === player.id) throw new LifeError('Choose another resident.');
     if (!text.trim() || text.length > 800) throw new LifeError('Use between 1 and 800 characters.');
-    if (distance(player, target) > 3) throw new LifeError(`Move closer to ${target.name} to talk (within 3 meters).`);
-    if (this.pendingTalk) throw new LifeError('A resident is still considering your last words.', 409);
+    // No proximity or busy gate. A housemate can be across the room, mid-activity or asleep and you
+    // can still speak to them; being unable to say a thing is a worse failure than saying it oddly.
+    // A second request simply supersedes one still in flight rather than being refused.
+    if (this.pendingTalk) this.failReaction(this.pendingTalk, `${this.resident(this.pendingTalk.targetId).name} did not finish answering.`);
     const context = { name: target.name, traits: [...target.traits], needs: { ...target.needs }, relationship: target.relationships.player ?? 0, memories: structuredClone(conversationMemories(target.memories)), playerName: player.name, hour: this.world.hour, activity: target.activity?.label ?? null };
     this.clear(player); this.clear(target);
     player.activity = this.make('chat', target.id, null, false); player.activity.duration = 40; player.activity.label = `Talking with ${target.name}`;
@@ -373,13 +375,10 @@ export class LifeSimulation {
     if (!['accept_chat', 'share', 'decline', 'walk_away'].includes(decision.action) || !ACT_KINDS.includes(act) || !decision.speech.trim() || decision.speech.length > 400) throw new LifeError('The resident response was outside the supported contract.');
     const player = this.resident('player'), target = this.resident(request.targetId);
     this.pendingTalk = null;
-    // Deliberately no longer checks what the target is doing. Housemates act autonomously, so their
-    // activity almost always changes while the model is thinking; keying validity to it silently
-    // threw away real replies. Only the player's own intent and the world's identity still gate it.
-    if (player.activity?.id !== request.activityId) {
-      if (player.activity?.id === request.activityId) this.clear(player, false);
-      return false;
-    }
+    // Nothing either of them has done since invalidates the reply; only a different world does.
+    // Housemates act autonomously, so their activity almost always changes while the model is
+    // thinking, and keying validity to it silently threw away real answers the player waited for.
+    if (player.activity?.id === request.activityId) this.clear(player, false);
     if (act !== 'none') {
       this.clear(player, false); this.clear(target);
       this.applyAct(player, target, act, decision.speech);

@@ -247,10 +247,9 @@ function renderContext() {
       const val = r.relationships.player ?? 0;
       $('#context-relation').textContent = relationName(val);
       $('#relationship-progress').style.width = `${(val + 100) / 2}%`;
-      const player = state.residents.find(r=>r.role==='player')!;
-      const near = Math.hypot(player.x-r.x, player.z-r.z) <= 3;
-      $('#talk-hint').textContent = state.provider.busy ? 'A response is on its way. Life keeps moving.' : !near ? 'Move closer for a free-text conversation.' : !state.provider.available ? 'Connect a model for free-text reactions.' : 'Say it your way. They will remember.';
-      $<HTMLButtonElement>('#send-talk').disabled = talkPending || !near || !state.provider.available || state.provider.busy;
+      $('#talk-hint').textContent = state.provider.busy ? 'A response is on its way. Life keeps moving.' : !state.provider.available ? 'Connect a model for free-text reactions.' : 'Say it your way. They will remember.';
+      // Distance is not a gate: you can speak to a housemate anywhere in the home, whatever they are doing.
+      $<HTMLButtonElement>('#send-talk').disabled = talkPending || !state.provider.available;
     } else {
       const o = target as LifeObject;
       $('#object-status').textContent = o.occupiedBy && o.occupiedBy !== 'player' ? `${state.residents.find(r=>r.id===o.occupiedBy)?.name ?? 'Someone'} is using this` : 'A moment for yourself';
