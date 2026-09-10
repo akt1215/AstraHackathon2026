@@ -1,1 +1,14 @@
-{"name":"glyph-rpg-prototype","version":"0.1.0","private":true,"scripts":{"dev":"vite --host 0.0.0.0","build":"vite build"},"devDependencies":{"vite":"^7.1.0"},"type":"module"}
+{
+  "name": "glyph-rpg-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "test": "node --test world.test.js combos.test.js"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  },
+  "type": "module"
+}
