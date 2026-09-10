@@ -10,15 +10,20 @@ are Akito's. Austin typed those notes.** The specific scenario, thresholds and r
 choices below are recommendations for Akito's review, not claims about what he approved.
 
 **Promise:** Explore a world with understandable rules. Solve its problems in your own
-way. What you actually do shapes your character, opening some actions and limiting others.
+way: describe any action in your own words, and the AI selects or composes the closest
+fitting engine actions. What you actually do shapes your character and its consequences.
 
 Preserve free-text intent, generated art and dialogue, persistent consequences, and
-character development through play. Add direct interaction, authoritative gameplay
-commands, explicit object/character state, and one goal visible from the beginning.
+character development through play. Add direct interaction, authoritative internal
+primitives, explicit object/character state, and one goal visible from the beginning.
+**There is no fixed player verb list.** The bounded vocabulary is an implementation
+contract for the AI and engine, never a grammar the player must learn or a menu that
+defines everything they can attempt. This is Akito’s explicit correction to the prior draft.
 Remove unrestricted conjuring and automatic quest proliferation from the first version.
 
-The model interprets intent, proposes supported actions, writes characters and narration,
-and creates visual assets. The engine owns legality, costs, outcomes and persistence.
+The model interprets arbitrary intent, maps it to internal primitives, writes narration
+and character responses, and creates visual assets. The engine owns legality, costs,
+outcomes and persistence.
 Player creativity operates through the world's rules; typing a desired outcome cannot
 make it true. Determinism means the same state, accepted commands and random seed produce
 the same state changes. Model wording and interpretation need not be identical.
@@ -39,7 +44,7 @@ validation → session reducer → saved session → client animation and reconc
 
 | Area | Existing reference mechanism | Change needed |
 | --- | --- | --- |
-| Commands | Nine visual verbs; model supplies effects | Gameplay rules that validate action intent before effects exist |
+| Commands | Nine visual verbs; model supplies effects | AI maps unrestricted player intent to internal primitives; engine validates their consequences |
 | Objects | Room tokens plus a separate inventory array | One identity and one location/owner for each object |
 | Persistence | Scene and Evolve can replace room tokens | Commands change entities; omitted entities remain unchanged |
 | Direct controls | Walking bypasses the model; token clicks draft text | Click/keyboard pickup, use and unlock through the same resolver as text |
@@ -61,12 +66,13 @@ No countdown in this demo. Exploration should not silently consume a rescue dead
 
 | Place | Objects and people | Purpose |
 | --- | --- | --- |
-| Entrance hall | Visible cell key, potion, keeper's charm, keeper, wounded scout | Learn pickup/use; offer two optional acts of help |
+| Entrance hall | Visible cell key, potion, keeper's charm, portable vase, keeper, wounded scout | Direct object interaction, creative manipulation and optional acts of help |
 | Crypt | Edda's locked cell, exit gate, manual winch, speaking tube to gatekeeper | Rescue; choose a physical or social exit |
 | Outside threshold | Arrival marker | Check that player and Edda have both escaped |
 
-Every fixture and item has a registered interaction. Decorative scenery is visually
-quieter and does not imply an interaction that the engine cannot perform. Seed uses
+Every fixture and item has typed physical properties and interaction rules. These
+support combinations; they are not a list of phrases the player must use. Decorative
+scenery is visually quieter than manipulable entities. Seed uses
 this validated layout and interaction graph; generated names/art/dialogue can vary.
 For this first scenario, generation cannot remove the key or invent an unsolvable lock.
 
@@ -77,8 +83,10 @@ Two routes share the rescue but diverge at the exit:
   No trait, potion, charm return or model call is required. The winch stays latched.
 - **Social route, earned through conduct:** return the keeper's charm, heal the scout,
   and release Edda. These distinct choices develop a compassionate commitment and
-  unlock Reassure. Use Reassure at the speaking tube; the gatekeeper opens the gate.
-  The model voices the exchange; the engine checks the ability and opens the gate.
+  a reassuring presence. Speak to the gatekeeper in any natural phrasing that
+  conveys a compassionate appeal; the AI maps that intent to the earned Reassure rule.
+  The player need not type “Reassure” or choose an ability button. The engine checks
+  eligibility and opens the gate; the model voices the exchange.
 
 The physical route is the guaranteed mechanical solution. The social route demonstrates
 that behavior creates a new option; it is not a required kindness checklist. Optional
@@ -89,7 +97,8 @@ Edda follows deterministically after release: follow the player's accepted path 
 open passages, stop at blocked passages, and use the same room-transition checks.
 If attacked while alive, Edda flees one reachable step, becomes afraid and pauses
 following; fear takes precedence over following. After release, the ordinary registered
-talk option “Offer escort” restores following when adjacent. It works without a model,
+escort interaction restores following when adjacent, inferred from an offer to help
+or available as a contextual shortcut. Its direct shortcut works without a model,
 grants no care evidence and does not erase the attack from history. This also handles
 a frightened captive released later. The exit crossing places both outside when she
 is alive, released and following within one cell. Otherwise show “Edda is not with you yet.” Completion requires both outside.
@@ -106,73 +115,118 @@ to “Leave with Edda.” The key is not consumed. Neither action needs typed na
 The approach and interaction are separate commands. If the target changes while walking,
 arrival rechecks it; a failed interaction keeps the completed walk but consumes no item.
 Walking over an item does not automatically collect it. Destructive or hostile actions
-require an explicit action selection, never the default click on a person.
+require explicit harmful intent, such as typing an action or deliberately selecting a
+contextual shortcut; they are never the default click on a person.
 
-## 4. Command contract
+## 4. Free-form player intent → internal engine primitives
 
-Both text and UI controls submit intent to one resolver. The model cannot apply a second,
-more permissive set of rules. Every denied action returns a visible reason and, where
-possible, a valid alternative. A request is not evidence that the action happened.
+The player can type anything: “hurl the vase,” “slide the key under the gate,” “distract
+him by juggling,” or “tell her we can still get out together.” The AI identifies the
+intended entities, motion and interaction, then selects or composes the best fitting
+primitives. An unfamiliar verb is never itself a reason to reject an action.
 
-### First-version player vocabulary
+Direct manipulation remains a convenience: clicking a key can collect it immediately.
+It does not define the limits of free-text play. Both paths reach the same world rules.
+Character history, actual possessions, reach and physical properties constrain the
+outcome; wording is unrestricted. Accepting an attempt does not guarantee its success.
 
-| Command | Required intent | Engine rule and result |
+### Proposed internal vocabulary — never a player command list
+
+| Internal primitive | Engine meaning | Different player intentions it can represent |
 | --- | --- | --- |
-| `move` | Destination cell/exit | Server verifies reachable path and occupancy; updates position and follower |
-| `inspect` | Visible entity | Returns known properties/interactions; does not reveal hidden solutions or traits |
-| `pick_up` | Item ID | Adjacent, portable, reachable, on ground; transfers the same ID to player |
-| `drop` | Held item ID, destination | Adjacent reachable walkable ground; transfers that ID from player to room |
-| `use` | Held item or fixture ID, optional target | Executes a registered interaction: heal, return owned charm, latch winch |
-| `talk` | Reachable NPC/tube, utterance or option | Model writes dialogue; a registered conversation option controls any state change |
-| `unlock` | Lock ID, key ID | Adjacent lock, matching held key; opens that fixture and emits its scenario event |
-| `attack` | Target ID | Checks range, target, commitments and fixed attack definition; applies damage/event |
-| `ability` | Earned ability ID, target ID | Checks eligibility, target and cost; runs registered effects such as Reassure |
+| `move` | Move an existing entity along a validated path/trajectory | Walk, throw, slide, shove, carry along, lunge |
+| `transfer` | Change an object's holder/container or ground location | Pick up, hand over, drop, take out, put away |
+| `spawn` | Create an allowed entity with a new ID and valid location | An authorized conjuration, a newly revealed object, debris from breakage |
+| `destroy` | Remove an entity from active play under a valid rule | Consume a potion, break a fragile prop, extinguish a represented flame |
+| `transform` | Apply a permitted state/form transition | Open a lock, heal someone, change stance, alter appearance |
+| `emote` | Speech, expression or a gesture without invented physical consequences | Plead, bluff, joke, reassure, mime, sing |
 
-For the demo, attacks are single overworld strikes with fixed damage and deterministic
-NPC reactions; no separate battle screen, initiative system or dice-dependent puzzle
-outcomes. NPC reaction rules must be declared in the fixture data: noncombatants flee
-to a reachable cell if able and become afraid; no model-supplied retaliatory damage.
-Attack is included to make character restrictions observable, not merely prose.
-Proposed fixture values: orthogonal interaction/attack reach of one cell, attack damage
-2 HP, noncombatant maximum 6 HP, scout starting at 2 HP, potion healing 4 HP up to the
-maximum and consumed only on a successful heal. The cell key is reusable. Inventory
-has no capacity limit in this demo. Characters at zero HP cannot act or follow; an
-attack on a dead target is rejected. These are tuning values, not model decisions.
+Names and parameter shapes are an internal design proposal. `move` is deliberately
+general: a thrown vase and a walking character use different motion parameters rather
+than requiring “throw” to be a new player command. Composed actions can use several
+primitives. Existing animation presets may implement these trajectories; their names
+are not an additional player vocabulary.
 
-Ordinary walking, pickup, valid key use and the winch always succeed when their checks
-pass. If chance is added later, the engine alone supplies seeded rolls, recorded with
-the resolved event. No client-supplied roll or model-written damage amount is authoritative.
+Every proposal carries actor/target IDs, relevant intent, primitive parameters and the
+world rule it relies on. The resolver checks the composition against current state.
+`transform` is not an arbitrary property patch, and `destroy` cannot bypass ownership,
+HP or character restrictions. The model cannot submit a desired damage number, declare
+a target hostile, grant an ability or complete a quest as an unchecked effect.
 
-### World operations and visual verbs
+Typed world rules derive allowed consequences from properties and context: portable,
+fragile, solid, locked, opens-lock-ID, healing amount, surrendered, hostile, and so on.
+For the initial demo, implement a small set of such rules with reusable combinations:
+movement and landing, possession transfer, fragile collision, key/lock, healing,
+fixture activation, basic harm, following, and conversation eligibility. This is a
+bounded simulation, not a finite list of player utterances.
 
-`spawn`, `destroy`, `transform` and typed state transitions are internal world operations.
-They execute only as consequences of registered commands or validated scenario setup.
-The model may propose an allowed template and placement within a setup budget; it cannot
-call destroy to bypass attack rules or declare an objective complete. Required puzzle
-fixtures are not destructible in this scenario. Optional destructible props use registered
-health/material rules. Drop cannot place a required item out of reach.
+### Example: “I throw the vase against the wall”
 
-Conjuring, equipment slots, crafting, throwing, general fire propagation and additional
-combat commands are later extensions. Creating artwork does not create a gameplay entity
-or grant a new ability. The nine reference animation verbs remain a separate visual
-vocabulary; the engine derives animations from committed events.
+1. AI resolves the existing vase and wall; if the vase is within reach, it can compose
+   taking hold and launching it. It never silently creates another vase.
+2. AI proposes `move(vase, destination, trajectory: arc)` with a launch context. Engine
+   verifies possession/reach, throw range, collision, and character constraints.
+3. At the first collision or legal landing cell, the engine resolves the vase's fragile
+   property: break it through `destroy` (and permitted debris if included), or keep the
+   same entity on legal ground if it survives. On obstruction, a surviving object lands
+   in the last reachable ground cell before the obstruction, never inside a solid wall.
+   If no legal landing exists, reject the whole composition before launch. Inventory
+   loses that same vase ID only when the action commits.
+4. Animation moves the vase along the accepted arc. Narration describes the resolved result.
 
-### Text examples
+**Throwing is a use of move.** It still needs collision/landing and possession semantics;
+a visual arc alone would leave the vase in inventory or let it pass through the wall.
+There is no need to register every synonym: hurl, toss, lob and fling can map to this
+same operation. Sliding changes the trajectory; giving changes the destination/ownership.
 
-- “I grab the key” → `pick_up(key)` with exactly the click interaction's checks.
-- “I summon the exit key” → denied unless a supported earned ability permits it.
-- “I reassure the gatekeeper” → `ability(reassure, tube)` if learned; otherwise ordinary
-  dialogue with no gate-opening effect and an explanation of the missing capability.
-- An ambiguous action → select a target/interpretation before any consequential command.
-- An unsupported clever combination → explain the missing interaction and offer supported
-  options. Do not claim arbitrary emergent physics in the demo.
+Proposed demo tuning: normal reach is one orthogonal cell; throw range is three cells
+with a grid-checked trajectory stopping at the first solid obstruction. The renderer's
+arc is visual, not an exemption from collision. A basic impact deals 2 HP under the
+registered harm rule, noncombatants have maximum 6 HP, the scout starts at 2 HP, and a
+potion heals 4 HP up to the maximum and is consumed only when healing succeeds. The
+portable vase is fragile and breaks on a solid collision. Required puzzle fixtures
+are protected; the key is reusable and cannot land in an unreachable cell. Inventory
+has no capacity limit. Characters at zero HP cannot act or follow. These are proposed
+fixture values, not model decisions or a claim of a general physics engine.
+
+Basic harm is resolved on the overworld; no separate battle screen or initiative
+system. Noncombatants flee one reachable step if able and become afraid. The engine
+applies that rule rather than accepting model-supplied retaliatory damage. Ordinary
+walking, pickup, valid key use and the winch succeed when their checks pass. If chance
+is later added, only the engine supplies seeded rolls and records them in events.
+
+### Best-fit interpretation, ambiguity and limits
+
+- Preserve what the player is trying to accomplish. Interpret “juggle to distract” as
+  a bounded object-motion sequence plus an expressive/social interaction; do not
+  silently turn it into an attack because both involve moving an object.
+- Compose existing primitives for a new combination before concluding it is unsupported.
+  The two written rescue routes are guaranteed examples, not an exhaustive solution list.
+  Any other valid composition satisfying the same objective predicates also counts.
+- If target or intent is materially ambiguous, ask a short in-world question before
+  changing state. An approximation that would change the goal or cause unexpected harm
+  also needs clarification; choosing an equivalent animation does not.
+- If a desired physical effect has no rule, the AI can narrate the supported attempt
+  without fabricating that effect. Explain the limit in-world, such as a gate being
+  too heavy to lift; do not answer with a programming error or a list of legal verbs.
+- “I summon the exit key” remains valid input. Without a conjuring capability the
+  character may attempt it and fail; no key is spawned. Unlimited input is not god mode.
+- A reassuring appeal maps to the earned social rule regardless of exact phrasing.
+  Before the capability develops, the model can still voice the conversation without
+  automatically granting its gate-opening effect.
+
+All primitives within one composed action validate against a draft and commit together.
+If a proposed destructive consequence conflicts with Mercy, reject the harmful
+composition before applying any part; do not drop the item or spend resources first.
+Already completed approach-walking is separate, as described in §3. Successful outcomes
+emit state-derived events that drive character evidence, audio and narration.
 
 ## 5. State the engine remembers
 
 | Record | Minimum authoritative fields |
 | --- | --- |
 | World | ID, schema/state version, current room, terrain/connections, entity registry, objective, event sequence, random state if used |
-| Entity | Stable ID, template/kind, art ID, typed state, supported interactions, exactly one location; optional immutable rightful-owner ID |
+| Entity | Stable ID, template/kind, art ID, typed properties/state, physical affordances, exactly one location; optional immutable rightful-owner ID |
 | Location | Room and cell, or owner/container ID, or destroyed; never two simultaneously |
 | Person | Entity ID, HP/max HP, stance, conditions, capabilities, relationships, relevant witnessed event IDs |
 | Player development | Qualifying evidence IDs, derived tendencies, active commitment IDs, earned ability IDs and provenance |
@@ -184,7 +238,7 @@ Example serialized entity before pickup:
 ```json
 {"id":"cell_key","kind":"item","template":"iron_key","art_id":"key_iron",
  "location":{"room":"hall","x":3,"y":4},
- "state":{"opens":"edda_cell"},"interactions":["inspect","pick_up"]}
+ "state":{"opens":"edda_cell"},"properties":{"portable":true,"fragile":false}}
 ```
 
 Coordinates are zero-based grid cells; fixture bounds and reachable placements are
@@ -238,20 +292,23 @@ Redemption requires a designed story rule and is deferred, not silently invented
 Reveal: “You returned what was stolen, tended the injured, and freed a prisoner.”
 Then show both consequences together:
 
-- **New action — Reassure:** persuade the gatekeeper to open the exit through a registered
+- **Developed capability — Reassure:** persuade the gatekeeper to open the exit through a registered
   compassionate appeal. One application; repeating it cannot grant rewards again.
 - **Commitment — Mercy:** you cannot deliberately harm a nonhostile or surrendered person.
   Defense against a hostile attacker remains allowed. “Kind” does not mean “incapable of combat.”
 
 The restriction is a recommendation for review. It is narrower than a blanket kindness
 score disabling all violence. Display the forming commitment and its rule before the
-third qualifying choice; after it forms, disabled harmful actions explain why and suggest
-talk or leave. The player does not choose a skill-tree node or buy a trait.
+third qualifying choice; after it forms, an attempted harmful action receives an
+in-character explanation. It never disables free-text input or requires choosing
+from a legal-verb list. The player does not choose a skill-tree node or buy a trait.
 
-Apply commitments to an action's registered semantic effects, not its command spelling:
-attack, a harmful item, an ability or an internal destroy request cannot bypass Mercy by
-using another route. Actor intent and target stance used for the check come from validated
-command definitions and current world state, not the model's convenient relabeling.
+Apply commitments to the composition’s resolved effects, not the player’s wording:
+a thrown object, a shove, a harmful item or a destroy request cannot bypass Mercy by
+being called “move.” The engine derives affected targets and harm from the proposed
+trajectory/rules and current world state. It does not trust a harmless label supplied
+by the model. Narrative intent comes from AI interpretation; materially ambiguous harm
+is clarified before execution, not certified as safe by an unverified model label.
 
 For the first demo, an acquired commitment remains for that run. Deliberately breaking
 or evolving it is later narrative content; until designed, no hidden “break oath” loophole.
@@ -263,21 +320,26 @@ claim that kindness is the only valid way to play.
 
 ### Authoritative turn flow
 
-1. Direct controls produce a command immediately; text asks the model for a supported
-   interpretation using visible context, legal actions and relevant authoritative state.
-2. Resolver validates intent, applies registered rules, records evidence, and commits.
+1. Accept arbitrary free text. The model interprets intent using world state, character
+   history, entity properties and internal primitive definitions, then proposes a fitting
+   composition. Direct object controls can produce the equivalent proposal immediately.
+2. Resolver validates the composition, derives consequences from world rules, records
+   evidence, and commits. No extra player-verb allowlist is checked.
 3. UI animates committed events and updates the objective/inventory immediately.
 4. The model narrates those outcomes and supplies dialogue. World-changing dialogue
-   options must resolve before the narration describes their success.
+   effects must resolve before the narration describes their success.
 
 Outcome narration begins after validation. A loading cue may appear earlier, but the DM
 must not announce a pickup, death or opened gate that the engine later rejects. Reject
 unsupported world proposals with structured reasons available to the next interpretation.
 Use short deterministic action receipts when the model is unavailable; keep supported
-movement, interactions, commitment rules and both exit routes functional when the model
+movement, direct interactions, commitment rules and both exit routes functional when the model
 provider is unavailable, using deterministic dialogue receipts. This requires the local
 application server to remain running; browser-to-server disconnection is a separate
 unavailable state, with actions disabled and a reconnect message, not local speculative play.
+Arbitrary text interpretation requires the model; when it is unavailable, preserve the
+input for retry and explain the outage. Do not substitute a keyword matcher and claim
+that creative text play has been verified offline.
 
 The model sees current room entities, held items, relevant NPC memories, the objective,
 character commitments and a bounded history summary. The server can select referenced
@@ -288,7 +350,8 @@ coordinates from a long transcript, or expose hidden NPC knowledge in player ins
 
 - Top: primary goal and current step, persistent throughout play.
 - Center: readable grid, player/NPCs/items, selected target and reachable interaction cue.
-- Bottom: concise narration, contextual actions, and free-text input.
+- Bottom: prominent unrestricted free-text input, concise narration, and optional
+  contextual shortcuts. No fixed verb bar or exhaustive action menu.
 - Side panel/drawer: inventory and “Who you are becoming,” with evidence and consequences.
 
 Keyboard: arrows/WASD move when text input is not focused; E uses the selected nearby
@@ -311,11 +374,11 @@ pre-event product code; this design review did not independently verify event ru
 
 | Order | Deliverable | Proposed files | Success case |
 | --- | --- | --- | --- |
-| 1 | Scenario fixture, entities and commands | `shared/schema.ts`, `shared/scenario.ts`, `shared/commands.ts`, their tests | Physical rescue route works with no model |
+| 1 | Scenario fixture, entities, internal primitives and composition resolver | `shared/schema.ts`, `shared/scenario.ts`, `shared/commands.ts`, their tests | Physical rescue route works with no model |
 | 2 | Persistence and request boundary | `shared/session.ts`, `server/index.ts`, `server/store.ts`, API tests | Retry/reload cannot duplicate or restore picked-up items |
 | 3 | Direct play and objective | `client/src/api.ts`, `main.ts`, `overworld.ts`, `ui.ts`, stylesheet | Click key → unlock → follower → winch → both escape |
 | 4 | Character development | `shared/character-development.ts`, scenario rules/tests, character panel | Optional care opens social route and enforces Mercy |
-| 5 | Model interpretation, dialogue and art | `shared/prompts.ts`, `server/astra.ts`, `shared/fake.ts` | Text obeys identical rules; narration matches committed events |
+| 5 | Free-form interpretation, dialogue and art | `shared/prompts.ts`, `server/astra.ts`, `shared/fake.ts` | Novel phrasing/combinations map to fitting primitives; narration matches committed events |
 | 6 | Presentation and observed-behavior docs | Audio/UI files, README/SPEC/IMPLEMENTED/HANDOFF | Built app is readable, audible, playable and accurately described |
 
 Use one overworld renderer. Defer freeform world generation, extra quests, broader combat,
@@ -326,14 +389,26 @@ gets its own worktree. Preserve the pre-existing changes in this checkout.
 
 ## 9. Verification and design challenge
 
-This revision is verified by checking scenario reachability and consistency of the written
-rules, plus an independent design review. No runtime tests can validate an unbuilt design.
+This revision is reviewed for scenario reachability and consistency of the written
+rules, including an independent design review. No runtime tests can validate an unbuilt design.
 Implementation must first observe the following behavior tests fail, then make them pass:
 
+- **Free-form interpretation:** with the actual model, test held-out phrasings and
+  combinations: “hurl the vase,” “slide the key,” “juggle to distract,” and an indirect
+  compassionate appeal. Judge intended entities, semantic equivalence, legal effects
+  and observed outcomes; keyword fixtures cannot verify this capability. Record the
+  model’s accepted composition so replay can test deterministic execution separately.
+- **Throwing:** one vase leaves inventory, traverses the accepted path and breaks at
+  the first wall collision; throwing at a protected person is stopped by Mercy before
+  any transfer or movement. Throw the reusable key at a wall: it survives in the last
+  reachable ground cell, remains retrievable, and is not duplicated. “Move” must not
+  conceal a harmful impact.
 - **Physical route:** fresh character, no kindness evidence, model provider disabled, local server running → pick up key,
   unlock, latch winch, escort Edda outside → objective complete.
 - **Social route:** three distinct qualifying choices → named evidence, Reassure and Mercy;
-  use Reassure at tube → gate opens → both escape without using winch.
+  express a compassionate appeal at tube in arbitrary phrasing → map to Reassure →
+  gate opens → both escape without using winch. Its contextual shortcut works without
+  the model; arbitrary phrasing is verified only with the model available.
 - **Identity boundary:** one kind act does not disable attacks; formed Mercy blocks harm
   to a nonhostile/surrendered person through every supported command, permits attacks
   on hostiles, and survives reload. Player-caused injury cannot generate care evidence.
@@ -358,7 +433,9 @@ required runtime before making demo performance claims.
 
 Self-review challenges addressed:
 
-- A longer verb list can leave outcomes arbitrary → engine rules own every mutation.
+- Restricting players to internal verbs changes Akito’s concept → free-form input;
+  the AI selects/composes the best fitting primitives, with no player verb allowlist.
+- A longer primitive list can leave outcomes arbitrary → engine rules own every mutation.
 - The original rescue example forced kindness to finish → independent winch route added.
 - A kindness score can forbid morally consistent defense → scoped, visible commitment.
 - Three errands can masquerade as unrestricted emergent character development → explicitly
@@ -369,7 +446,8 @@ Self-review challenges addressed:
 
 ## 10. Review points for Akito
 
-The requested design revision is complete; these recommendations remain open to change:
+Akito has clarified that input is unrestricted and the AI maps it to internal actions.
+That boundary is settled; the following recommendations remain open to change:
 
 1. Opening scenario: rescue Edda in the cathedral, physical winch route plus earned social route.
 2. Character rule: visible Mercy commitment after three distinct care choices, blocking harm
