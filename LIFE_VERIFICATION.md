@@ -69,6 +69,23 @@ These are single samples on one machine, not a cross-device guarantee. The pre-p
 
 **Two defects found and fixed during the pass.** Rug fringe meshes were pickable but carried no metadata, so a click landing on one resolved to nothing and click-to-walk silently died along every rug border. The wall-shelf asset's first export placed geometry below its origin, which the kit validator rejected; the origin was moved to the lowest bracket rather than relaxing the invariant. A new test asserts every furniture approach point and resident start position stays walkable as static decor is added; it was observed failing against a deliberately blocking fixture before being trusted.
 
+## Resident movement (September 10, follow-up)
+
+The user reported residents moving ガタガタ — in visible steps. Three defects in one code path, each fixed and each covered by a test in `client/src/locomotion.test.ts` (8 tests):
+
+1. **The body arrived early and waited.** Positions arrive from the server about every 250ms while frames run at ~8ms. The renderer eased toward each new position with `1 - exp(-dt * 12)`, an 83ms time constant, so it converged well inside a poll window and then stalled until the next one landed. No easing constant fixes this; the fix is to keep a short position history and play it back slightly delayed so every frame falls *between* two reported positions.
+2. **Keying the history to arrival time reproduced the pulse.** A 250ms poll catches two or three ~100ms server ticks, so consecutive reports land 0.51m, 0.51m, 0.34m apart in wall-clock terms — measured live, not assumed. Position is exactly linear in *simulation* time, so the trail is keyed to `state.elapsed`, carried forward between polls by the client at the current game speed. This also makes pause stop the body for free.
+3. **The stride ran on a timer, so the feet skated.** The walk cycle advanced at `dt * 8.5` regardless of ground speed. It now advances with distance actually travelled, and the imported walk clip is scaled to the same pace.
+
+Two further problems surfaced only because the tests were written first, and neither would have been obvious by eye:
+
+- Sizing the playback delay from an **average** poll interval lags a slowdown by several polls, during which playback runs past the newest sample and holds — reintroducing the stall. Sizing it from a **decaying peak** oscillates between alternating poll spans, and any movement in the delay is movement in the playback point, which shows up as a speed wobble. The delay is now the widest poll span still in the retained window.
+- Changing the delay at all shifts the playback point and jumps the body, so the applied delay is eased toward its target asymmetrically: widened quickly, because too small a delay stalls, and narrowed slowly, because that only trims latency.
+
+**Cost.** The body is rendered roughly 340ms behind the newest report at the normal poll cadence. Combined with the poll itself, a click takes visibly longer to produce movement than before. That latency is the deliberate price of continuous motion, and for a top-down life simulation it is the better trade.
+
+**Verified after the change.** Typecheck clean, 124 tests across 17 files. A commanded walk crossed the room and arrived at the bed approach, transitioning to Sleeping, so the buffer does not break arrival or posed activities. Console clean apart from a pre-existing `/favicon.ico` 404; all eleven GLBs, the HDR environment and the scanned materials return 200. 111 FPS, median 8.4ms, p95 12.6ms, max 18.3ms, 0 stalls.
+
 ## Remaining limits and adoption gate
 
 **Astra verified September 10 after the key was configured.** The isolated `life-probe.ts` request used `gpt-6-astra`, returned a valid `share` decision in **4,149 ms**, and `applyReaction` returned true with June entering Sharing a meal and emitting the cooperation event. The production server was gracefully restarted with the same world identity, its health endpoint reports Astra / gpt-6-astra, and the browser badge agrees. The probe did not modify the live save. This verifies the model/engine path; a production-browser Astra conversation was not sent during this follow-up.
