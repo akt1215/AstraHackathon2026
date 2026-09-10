@@ -34,7 +34,11 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   scene.imageProcessingConfiguration.toneMappingEnabled = true;
   scene.imageProcessingConfiguration.exposure = 1.5;
   scene.imageProcessingConfiguration.contrast = 1.12;
-  const camera = new ArcRotateCamera('room-camera', -Math.PI / 2.8, 1.04, 18.6, new Vector3(6, .8, 4.9), scene);
+  // Framing shared by construction and the orbit-camera reset so both stay in step.
+  const ORBIT_BETA = .92;
+  const ROOM_FOCUS = new Vector3(6, .8, 4.9);
+  let orbitRadius = 15.4;
+  const camera = new ArcRotateCamera('room-camera', -Math.PI / 2.8, ORBIT_BETA, orbitRadius, ROOM_FOCUS.clone(), scene);
   camera.attachControl(canvas, true);
   camera.lowerRadiusLimit = 6;
   camera.upperRadiusLimit = 26;
@@ -72,7 +76,6 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   let theme: LifeTheme = 'loft';
   let focused = '';
   let cameraMode: 'orbit' | 'follow' = 'orbit';
-  let orbitRadius = 18.6;
   let clock = 0;
   let disposed = false;
   let lastDown = { x: 0, y: 0 };
@@ -798,7 +801,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     camera.fov = aspect < 1 ? 1.05 : .8;
     const horizontalHalfAngle = Math.atan(Math.tan(camera.fov / 2) * aspect);
     // Fit the home's bounding sphere to the narrower horizontal field on phones.
-    orbitRadius = Math.max(18.6, 8.3 / Math.sin(horizontalHalfAngle) * 1.12);
+    orbitRadius = Math.max(15.4, 8.3 / Math.sin(horizontalHalfAngle) * 1.12);
     camera.upperRadiusLimit = Math.max(26, orbitRadius * 1.5);
     if (cameraMode === 'orbit') camera.radius = orbitRadius;
   };
@@ -871,7 +874,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     setCamera(mode) {
       cameraMode = mode;
       if (mode === 'follow') { camera.radius = 8; camera.beta = 1.15; }
-      else { camera.radius = orbitRadius; camera.beta = 1.04; camera.setTarget(new Vector3(6, .8, 4.9)); }
+      else { camera.radius = orbitRadius; camera.beta = ORBIT_BETA; camera.setTarget(ROOM_FOCUS.clone()); }
     },
     projectResident(id) {
       const person = people.get(id); if (!person) return null;
