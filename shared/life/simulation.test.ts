@@ -113,6 +113,12 @@ describe('continuous life simulation', () => {
     const state = new LifeSimulation().state();
     for (const fixture of STATIC_FIXTURES) expect(walkable(state, { x: fixture.x, z: Math.max(.4, fixture.z) }), fixture.id).toBe(false);
   });
+  it('keeps every furniture approach and resident start reachable as decor fixtures are added', () => {
+    // New static decor must not swallow an approach point: the activity would silently become unusable.
+    const state = new LifeSimulation().state();
+    for (const object of state.objects) expect(walkable(state, object.approach), `${object.id} approach`).toBe(true);
+    for (const resident of state.residents) expect(walkable(state, { x: resident.x, z: resident.z }), `${resident.name} start`).toBe(true);
+  });
   it('reconciles saved furniture approaches with the current visible layout without losing an activity', () => {
     const seed = new LifeSimulation().snapshot();
     const table = seed.state.objects.find(o => o.id === 'table')!;
