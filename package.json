@@ -3,13 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "node --env-file-if-exists=.env --import tsx node_modules/vite/bin/vite.js --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test world.test.js combos.test.js engine/*.test.js server/*.test.js",
-    "start": "node server/start.js"
+    "test": "node --import tsx --test world.test.js combos.test.js engine/*.test.js server/*.test.js && vitest run --config vitest.config.ts",
+    "start": "node --env-file-if-exists=.env --import tsx server/start.js",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "vite": "^7.1.0"
+    "@types/node": "^22.20.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^5.0.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "openai": "^7.14.0",
+    "tsx": "^4.23.13",
+    "zod": "^4.6.1"
+  }
 }
