@@ -505,7 +505,28 @@ def coffee_table():
     export('coffee-table',[w,d],'Local1.15 x.62, top.446, lower shelf.189; front-Z. Tapered legs, aprons, planked top with chamfer band, books, brass tray, candle and shelved magazines all inside the nominal footprint.')
 
 
-builders={'sofa':sofa,'bed':bed,'dining-table':table,'dining-chair':chair,'kitchen':kitchen,'window-frame':window,'fridge':fridge,'bookshelf':bookshelf,'wall-shelf':wall_shelf,'coffee-table':coffee_table}
+def armchair():
+    """Low lounge chair with rolled arms and a draped throw, sized for the living rug."""
+    begin();w=.86;d=.88
+    for x in [-.325,.325]:
+        for z in [-.325,.325]:rod('Tapered lounge foot',(x*1.03,0,z*1.03),(x,.235,z),.031,'wood.walnut',.021)
+    box('Lounge base frame',(.79,.20,.81),(0,.325,0),'fabric.terracotta',.05)
+    box('Seat deck rail',(.74,.045,.76),(0,.437,0),'seam.linen',.012)
+    cushion('Buttoned seat cushion',(.66,.185,.66),(0,.525,-.015),'fabric.terracotta')
+    # Back leans away from the sitter; a linen band reads as the visible cushion seam.
+    cushion('Rolled back cushion',(.70,.44,.20),(0,.79,.30),'fabric.terracotta',tilt=-.17)
+    box('Back seam band',(.70,.016,.055),(0,.575,.315),'seam.linen',.004)
+    for x in [-.375,.375]:
+        box('Padded chair arm',(.10,.30,.74),(x,.60,.02),'fabric.terracotta',.045)
+        rod('Rolled arm cap',(x,.762,-.35),(x,.762,.36),.056,'fabric.terracotta',vertices=16)
+        rod('Arm welt cord',(x*1.05,.735,-.352),(x*1.05,.735,.36),.011,'seam.linen',vertices=8)
+    # A throw over the back breaks the silhouette the way the concept's chair does. Draping it
+    # over an arm instead pushes the cloth past the nominal footprint, so it sits on the back.
+    cloth('Draped wool throw',.52,.26,(0,1.006,.29),'fabric.linen',drop_sides=.0,drop_front=.30,nx=38,nz=30,front_start=.16)
+    export('armchair',[w,d],'Local.86 x.88, seat.617, arm cap.818, back cushion top1.01; front-Z. Tapered walnut feet, padded rolled arms with welt cord, buttoned seat, leaning back cushion and a wool throw over the back. All geometry stays inside the nominal footprint.')
+
+
+builders={'sofa':sofa,'bed':bed,'dining-table':table,'dining-chair':chair,'kitchen':kitchen,'window-frame':window,'fridge':fridge,'bookshelf':bookshelf,'wall-shelf':wall_shelf,'coffee-table':coffee_table,'armchair':armchair}
 requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(builders)
 for key in requested: builders[key]()
 if len(requested) != len(builders) and (OUT/'manifest.json').exists():

@@ -7,6 +7,7 @@ export const STATIC_FIXTURES: readonly StaticFixture[] = [
   { id: 'floor-lamp-west', x: 4.2, z: 8.85, width: .5, depth: .5 },
   { id: 'floor-lamp-east', x: 11.55, z: 3.55, width: .5, depth: .5 },
   { id: 'coffee-table', x: 2.95, z: 6.8, width: 1.15, depth: .62 },
+  { id: 'armchair', x: 4.6, z: 7.6, width: .86, depth: .88 },
   { id: 'dining-chair-north', x: 5.7, z: 1.06, width: .58, depth: .54 },
   { id: 'dining-chair-south', x: 5.7, z: 2.94, width: .58, depth: .54 },
 ];

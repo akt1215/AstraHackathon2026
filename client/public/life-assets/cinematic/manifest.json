@@ -385,6 +385,42 @@
       "triangles": 4312,
       "notes": "Local1.15 x.62, top.446, lower shelf.189; front-Z. Tapered legs, aprons, planked top with chamfer band, books, brass tray, candle and shelved magazines all inside the nominal footprint.",
       "sha256": "543fc313d507008ec1120afcc39f02e2e455cb874c36f38790eb6110ead5bdb8"
+    },
+    {
+      "file": "armchair.glb",
+      "nominalFootprint": [
+        0.86,
+        0.88
+      ],
+      "bounds": {
+        "min": [
+          -0.4309999942779541,
+          -0.0015732347965240479,
+          -0.4050000011920929
+        ],
+        "max": [
+          0.4309999942779541,
+          1.0175880193710327,
+          0.4212360680103302
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.fabric.linen",
+        "cinematic.fabric.terracotta",
+        "cinematic.seam.linen",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 4,
+      "triangles": 15196,
+      "notes": "Local.86 x.88, seat.617, arm cap.818, back cushion top1.01; front-Z. Tapered walnut feet, padded rolled arms with welt cord, buttoned seat, leaning back cushion and a wool throw over the back. All geometry stays inside the nominal footprint.",
+      "sha256": "9238b1d0fc85f5a20bc9e117c33dc3378f61fc86e75e3ae3c1d4f04e2c63fc2c"
     }
   ]
 }

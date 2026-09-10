@@ -446,6 +446,10 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     if (!loaded) return;
     for (const mesh of cinematicShelf.getChildMeshes()) if (mesh instanceof Mesh) wallFaces.push({ mesh, side: 'left' });
   });
+  const armchairFixture = STATIC_FIXTURES.find(item => item.id === 'armchair')!;
+  const cinematicArmchair = new TransformNode('modeled-armchair', scene);
+  cinematicArmchair.position.set(armchairFixture.x, 0, armchairFixture.z); cinematicArmchair.rotation.y = -Math.PI * .62;
+  void loadCinematicAsset('armchair', cinematicArmchair);
   const coffeeFixture = STATIC_FIXTURES.find(item => item.id === 'coffee-table')!;
   const cinematicCoffeeTable = new TransformNode('modeled-coffee-table', scene);
   cinematicCoffeeTable.position.set(coffeeFixture.x, 0, coffeeFixture.z);
