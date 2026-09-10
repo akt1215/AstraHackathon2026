@@ -1,3 +1,4 @@
+import {ACTORS} from '../content/encounters.js';
 import {HAIRSTYLES,CLOTHES,WEAPONS} from '../content/characters.js';
 import {questConstraints,validateQuestNovelty} from '../engine/quest-guidance.js';
 import {createHash} from 'node:crypto';
@@ -23,6 +24,7 @@ export function generationApi(env,fetcher=fetch){
    if(!SCHEMAS[input.kind]||typeof input.id!=='string'||input.id.length>100||!Array.isArray(input.events)||input.events.length<(creation?0:1)||input.events.length>20||input.events.some(e=>typeof e.id!=='string'||e.id.length>100||typeof e.type!=='string'||typeof e.label!=='string'||e.label.length>240))return send(400,{error:'Invalid generation context.'});
    const context={kind:input.kind,events:input.events.map(({id,type,target,label})=>({id,type,target,label})),profile:input.profile,knownRooms:HOUSES.map(({id,name})=>({id,name})),knownCombos:COMBOS.map(({id,name})=>({id,name})),pastQuests:input.pastQuests,activeAwakening:input.activeAwakening};
    if(creation)Object.assign(context,{mode:input.mode,creativeBrief:input.brief,variation:input.id,availableHair:HAIRSTYLES,availableClothes:CLOTHES,availableWeapons:Object.keys(WEAPONS)});
+   if(input.kind==='reaction'){const hit=context.events.find(e=>e.type==='combat_hit'),actor=ACTORS.find(a=>a.id===hit?.target);if(!actor)return send(400,{error:'Reaction requires a known character hit.'});context.speaker={id:actor.id,name:actor.name,personality:actor.personality};context.scene='Outdoors in Cinderwatch Outpost. No indoor encounter or injury beyond the recorded hit is established.';}
    if(input.kind==='quest')context.questConstraints=questConstraints(context.pastQuests||[]);
    const digest=createHash('sha256').update(JSON.stringify(context)).digest('hex');
    const prior=cache.get(input.id);if(prior){if(prior.digest!==digest)return send(409,{error:'This generation ID belongs to a different event snapshot.'});return send(200,{content:prior.content})}
@@ -30,7 +32,7 @@ export function generationApi(env,fetcher=fetch){
    if(requests>=limit)return send(429,{error:'The local server generation budget has been reached.'});
    busy=true;requests++;
    try{
-    const upstream=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:env.OPENAI_MODEL,store:false,instructions:SYSTEM,input:JSON.stringify(context),max_output_tokens:6500,text:{format:{type:'json_schema',name:`game_${input.kind}`,strict:true,schema:SCHEMAS[input.kind]}}}),signal:AbortSignal.timeout(40000)});
+    const upstream=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:env.OPENAI_MODEL,store:false,instructions:SYSTEM+ (input.kind==='reaction'?' You are voicing an NPC who was actually struck by the player. Return one short, vivid in-character protest or threat, at most two sentences, responding only to the supplied combat_hit. Use the supplied speaker ID and cite its hit event. Do not claim a kill, promise a quest, or change gameplay. The engine already controls retaliation.':''),input:JSON.stringify(context),max_output_tokens:6500,text:{format:{type:'json_schema',name:`game_${input.kind}`,strict:true,schema:SCHEMAS[input.kind]}}}),signal:AbortSignal.timeout(40000)});
     if(!upstream.ok)return send(502,{error:`OpenAI request failed (${upstream.status}). Check the server configuration or retry later.`});
     const result=await upstream.json();if(result.status!=='completed')return send(502,{error:'Generation was incomplete; no changes were applied.'});
     const parts=(result.output||[]).flatMap(o=>o.content||[]);if(parts.some(p=>p.type==='refusal'))return send(422,{error:'Generation was declined; no changes were applied.'});

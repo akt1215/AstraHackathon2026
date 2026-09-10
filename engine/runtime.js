@@ -23,7 +23,7 @@ export class GameRuntime {
  record(type,target,label,{unique=false}={}){
   if(type==='room_entered'&&!HOUSES.some(h=>h.id===target))throw new Error('Unknown room');
   if(type==='combo_learned'&&!COMBOS.some(c=>c.id===target))throw new Error('Unknown combo');
-  if(!['room_entered','combo_learned','quest_requested','quest_completed','awakening_accepted','awakening_declined'].includes(type))throw new Error('Unknown event');
+  if(!['room_entered','combo_learned','quest_requested','quest_completed','awakening_accepted','awakening_declined','combat_hit'].includes(type))throw new Error('Unknown event');
   const key=`${type}:${target}`,first=!this.state.seen.includes(key);if(unique&&!first)return null;
   if(first)this.state.seen.push(key);
   const event={id:this.id(),type,target,label,time:this.clock(),meaningful:first&&['room_entered','combo_learned','quest_completed'].includes(type)};

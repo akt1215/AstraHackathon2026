@@ -1,7 +1,10 @@
+import {Encounters} from './engine/encounters.js';
+import {ReactionVoice} from './engine/reaction-voice.js';
+import {drawEncounter,drawEncounterSpeech} from './engine/encounter-renderer.js';
 import {installOnboarding} from './engine/onboarding.js';
 import {WEAPONS,characterContent,weaponMove} from './content/characters.js';
 import {installDialogue} from './engine/dialogue-ui.js';
-import {observeCharacterEvent,rowanGoal,rowanWaypoint,rowanConversation} from './engine/character-memory.js';
+import {observeCharacterEvent,rowanGoal,rowanConversation} from './engine/character-memory.js';
 import {nextGuidance} from './engine/quest-guidance.js';
 import {CLASS_COLORS,ITEMS} from './content/game-config.js';
 import {GameRuntime} from './engine/runtime.js';
@@ -10,7 +13,9 @@ import {installGameUI} from './engine/game-ui.js';
 import {drawAttachment,drawGeneratedSkill} from './engine/generated-renderer.js';
 let storage;try{storage=localStorage}catch{}
 const runtime=new GameRuntime({storage});
-const rowan=rowanGoal(runtime.state.characterMemory);let rowanWalkingUntil=0;
+const encounters=new Encounters({onProvoked:a=>{const event=runtime.record('combat_hit',a.id,`Struck ${a.name} with ${actionName(attackKind)} outdoors in Cinderwatch`);voice.request(a,event)},onFeedback:message=>{toast(message);playSound('Heavy')}});
+const rowan=encounters.actors.find(a=>a.id==='rowan');Object.assign(rowan,rowanGoal(runtime.state.characterMemory));rowan.home={x:rowan.x,y:rowan.y};
+const voice=new ReactionVoice({isEnabled:()=>generation.enabled,onLine:(a,line,event)=>{encounters.say(a,line);runtime.state.journal.push({id:crypto.randomUUID(),title:`${a.name} answered`,summary:line,sourceEventIds:[event.id],source:'ai',time:Date.now()});runtime.changed()},onError:()=>toast('AI reply unavailable. Characters can still defend themselves.')});
 let creator;
 let engineUI,generatedSkillStart=-Infinity,generatedSkillReady=0;
 import {ComboTracker,COMBOS} from './combos.js';
@@ -31,7 +36,7 @@ let facing='down', walkingUntil=0, currentRoom=null, returnPoint=null;
 const roomCanvas=document.createElement('canvas');roomCanvas.width=800;roomCanvas.height=600;
 const colors=CLASS_COLORS;
 const dialogue=installDialogue({speakerLabel:speaker=>speaker==='Evergreen'?(runtime.state.profile.name||'Evergreen'):speaker,drawPortrait(c,speaker){c.clearRect(0,0,120,120);const custom=speaker==='Evergreen'&&runtime.state.profile.onboarded?characterContent(runtime.state.profile):undefined;if(custom)drawAttachment(c,60,78,3,{appearance:custom.characterArt});drawHero(c,60,78,speaker==='Rowan'?'#96815b':colors[heroClass],3,undefined,false,{custom,direction:'down',role:speaker==='Rowan'?'Warrior':heroClass})},sound:()=>playSound('select')});
-function recordCharacterMoment(event){const result=observeCharacterEvent(runtime.state.characterMemory,event,{room:currentRoom,player,rowan});runtime.state.characterMemory=result.memory;runtime.changed();dialogue.speak(result.lines)}
+function recordCharacterMoment(event,{speak=true}={}){const result=observeCharacterEvent(runtime.state.characterMemory,event,{room:currentRoom,player,rowan});runtime.state.characterMemory=result.memory;runtime.changed();if(speak)dialogue.speak(result.lines)}
 function introduceCharacter(){if(runtime.state.profile.onboarded&&!runtime.state.characterMemory.introduced){runtime.state.characterMemory.introduced=true;runtime.changed();dialogue.speak([{speaker:'Evergreen',thought:true,text:'That man by the inn keeps looking this way. Maybe he knows somewhere I can stay.'}])}}
 
 if(colors[runtime.state.profile.heroClass])heroClass=runtime.state.profile.heroClass;
@@ -47,7 +52,7 @@ function sprite(c,x,y,color=colors[heroClass],scale=1,name){
 const bg=document.createElement('canvas');bg.width=800;bg.height=600;const b=bg.getContext('2d');
 function landscape(){drawVolcanic(b)}
 landscape();
-function draw(){canvas.style.objectPosition=`${player.x/800*100}% ${player.y/600*100}%`;ctx.drawImage(currentRoom?roomCanvas:bg,0,0);if(!currentRoom){sprite(ctx,290,315,'#507f9b',1,'Lunara');sprite(ctx,536,354,'#c6bca0',1,'Clover');sprite(ctx,215,369,'#9b6b3e',1,'Foxglove');drawHero(ctx,rowan.x,rowan.y,'#96815b',1,undefined,false,{direction:'down',walking:performance.now()<rowanWalkingUntil});pixelText(ctx,'!',rowan.x,rowan.y-31,'#ffec98',23);}sprite(ctx,player.x,player.y,gear==='Emberweave cloak'?'#b26943':colors[heroClass],1.2,'Evergreen');const awakened=runtime.activeOffer()?.content;if(awakened)drawGeneratedSkill(ctx,player.x,player.y,awakened,(performance.now()-generatedSkillStart)/awakened.skill.durationMs);const guidance=nextGuidance(runtime.state,player,currentRoom,rowan);if(guidance.target){const {x,y}=guidance.target;pixelText(ctx,'▼',x,y-35,'#ffe2a0',19);rect(ctx,x-10,y+12,20,2,'#edc67a');}if(!currentRoom)atmosphere(ctx,performance.now()/1000);rect(ctx,player.x-12,player.y+19,25,3,'#172325');rect(ctx,player.x-11,player.y+19,22,2,'#d9df92');if(frame>0){pixelText(ctx,frameText,player.x,player.y-52-(60-frame)/4,'#fff4b0',20);frame--}}let frameText='';draw();
+function draw(){canvas.style.objectPosition=`${player.x/800*100}% ${player.y/600*100}%`;ctx.drawImage(currentRoom?roomCanvas:bg,0,0);if(!currentRoom){for(const actor of encounters.actors)drawEncounter(ctx,actor,encounters.time);if(!rowan.hostile&&!rowan.downUntil)pixelText(ctx,'!',rowan.x,rowan.y-31,'#ffec98',23);}sprite(ctx,player.x,player.y,gear==='Emberweave cloak'?'#b26943':colors[heroClass],1.2,'Evergreen');const awakened=runtime.activeOffer()?.content;if(awakened)drawGeneratedSkill(ctx,player.x,player.y,awakened,(performance.now()-generatedSkillStart)/awakened.skill.durationMs);const guidance=nextGuidance(runtime.state,player,currentRoom,rowan);if(guidance.target){const {x,y}=guidance.target;pixelText(ctx,'▼',x,y-35,'#ffe2a0',19);rect(ctx,x-10,y+12,20,2,'#edc67a');}if(!currentRoom)atmosphere(ctx,performance.now()/1000);rect(ctx,player.x-12,player.y+19,25,3,'#172325');rect(ctx,player.x-11,player.y+19,22*encounters.hp/encounters.maxHp,2,'#d9df92');if(!currentRoom){drawEncounterSpeech(ctx,encounters.actors,encounters.time);for(const f of encounters.floats)pixelText(ctx,f.text,f.x,f.y-35-(900-f.until+encounters.time)/35,'#ffb383',19);}if(frame>0){pixelText(ctx,frameText,player.x,player.y-52-(60-frame)/4,'#fff4b0',20);frame--}}let frameText='';draw();
 function portrait(){let c=document.querySelector('#portrait').getContext('2d');c.clearRect(0,0,100,80);rect(c,20,66,62,4,'#d2d9be');drawHero(c,49,52,colors[heroClass],2.2,'',gear==='Sunsteel blade',{role:heroClass,custom:runtime.state.profile.onboarded?characterContent(runtime.state.profile):undefined})}portrait();
 const modal=document.querySelector('#modal'),body=document.querySelector('#modalBody');let toastTimer;function toast(t){const el=document.querySelector('#mapToast');el.textContent=t;el.classList.remove('quiet');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('quiet'),4500)}function setLocation(title,subtitle){document.querySelector('.area-label strong').textContent=title;document.querySelector('.area-label span').textContent=subtitle;canvas.setAttribute('aria-label',title+'. Use WASD, arrow keys, or touch controls to move.');}
 function move(dir){
@@ -70,10 +75,11 @@ document.querySelectorAll('[data-move]').forEach(el=>el.onclick=()=>move(el.data
    const definition=actionDefinition(name);
    const combo=comboTracker.accept(name,now,definition.duration);
    attackKind=combo?combo.id:name;
-   if(combo){const learned=runtime.record('combo_learned',combo.id,`Learned ${combo.name}`);recordCharacterMoment(learned);comboNoticeUntil=now+1800;document.querySelector('#comboGuide').textContent=`✦ ${combo.name.toUpperCase()}!`;toast(`${combo.name}!`)}
+   if(combo){const learned=runtime.record('combo_learned',combo.id,`Learned ${combo.name}`);recordCharacterMoment(learned,{speak:false});comboNoticeUntil=now+1800;document.querySelector('#comboGuide').textContent=`✦ ${combo.name.toUpperCase()}!`;toast(`${combo.name}!`)}
    attackStart=now;lastActionTick=now;actionReady[name]=now+definition.cooldown;
-   walkingUntil=0;playSound(actionDefinition(attackKind).sound);draw();return;
+   encounters.begin(attackKind,facing,runtime.state.profile.weapon||'sword',activeDuration());walkingUntil=0;playSound(actionDefinition(attackKind).sound);draw();return;
  }
+ if(name==='Potion'){if(encounters.heal()){playSound('Potion');toast('Recovered 40 HP. Potion ready again in 8 seconds.')}else toast('Health full or potion cooling down.');draw();return}if(name==='Guard')encounters.guardUntil=encounters.time+1500;
  comboTracker.reset();playSound(name);frameText={Guard:'+ DEFENSE',Rally:'+ STRENGTH',Potion:'+ 40 HP'}[name];frame=60;draw();toast(`${name} · animation preview`)
 }
 document.querySelectorAll('[data-skill]').forEach(el=>el.onclick=()=>skill(el.dataset.skill));
@@ -93,7 +99,7 @@ function drawBattle(){const effect=battleEffect;const c=document.querySelector('
  });if(effect){const elapsed=battleAnimation?performance.now()-battleAnimation.start:0;if(elapsed<1400)pixelText(c,effect,effect.startsWith('-')?345:180,(effect.startsWith('-')?69:139)-Math.min(18,elapsed/60),'#fff1bb',26)}}document.querySelector('#battleOpen').onclick=battle;
 document.fonts.ready.then(()=>{landscape();draw()});
 function openMenu(){if(dialogue.active)return;engineUI.leave();comboTracker.reset();playSound('menu');modal.classList.add('start-menu');document.querySelector('#modalTitle').textContent='ADVENTURE';body.innerHTML=`<div class="menu-list"><button data-menu="character">Character <kbd>C</kbd></button><button data-menu="inventory">Bag <kbd>I</kbd></button><button data-menu="party">Party <kbd>P</kbd></button><button data-menu="journal">Journal <kbd>J</kbd></button><button data-menu="awakening">Awakenings <kbd>U</kbd></button><button data-menu="quests">Quests <kbd>T</kbd></button><button data-menu="combos">Combos <kbd>K</kbd></button><button data-menu="battle">Battle preview <kbd>B</kbd></button><button data-menu="resume">Back to game <kbd>Esc</kbd></button></div><div class="menu-footer"><span>◆ 1,240</span><span>Cinderwatch</span></div>`;body.querySelectorAll('[data-menu]').forEach(el=>el.onclick=()=>showGameView(el.dataset.menu));if(!modal.open)modal.showModal();body.querySelector('button').focus()}
-function showGameView(view){if(dialogue.active)return;if(['awakening','quests','journal'].includes(view)){engineUI.show(view);return}engineUI.leave();if(view==='combos'){comboTracker.reset();modal.classList.remove('start-menu');document.querySelector('#modalTitle').textContent='Combat combos';body.innerHTML='<p class="modal-note">Let each move finish, then use the next skill within 1.6 seconds. The final input becomes a special finisher. Touch buttons work too.</p>'+COMBOS.map(c=>`<div class="journal-entry"><h2>${c.name}</h2><p>${c.steps.map(actionName).join(' → ')}<br><b>${c.keys}</b><br>${c.description}</p></div>`).join('')+'<p class="modal-note">Animation previews · no enemy damage yet.</p>';if(!modal.open)modal.showModal();return}if(view==='resume'){modal.close();return}if(view==='battle'){battle();return}if(view==='party'){modal.classList.remove('start-menu');document.querySelector('#modalTitle').textContent='Your party';body.innerHTML='<div class="party-panel">'+document.querySelector('.party').innerHTML+'</div>';if(!modal.open)modal.showModal();return}openView(view)}
+function showGameView(view){if(dialogue.active)return;if(['awakening','quests','journal'].includes(view)){engineUI.show(view);return}engineUI.leave();if(view==='combos'){comboTracker.reset();modal.classList.remove('start-menu');document.querySelector('#modalTitle').textContent='Combat combos';body.innerHTML='<p class="modal-note">Let each move finish, then use the next skill within 1.6 seconds. The final input becomes a special finisher. Touch buttons work too.</p>'+COMBOS.map(c=>`<div class="journal-entry"><h2>${c.name}</h2><p>${c.steps.map(actionName).join(' → ')}<br><b>${c.keys}</b><br>${c.description}</p></div>`).join('')+'<p class="modal-note">Combos deal bonus damage to nearby targets. Face your opponent; walls block attacks.</p>';if(!modal.open)modal.showModal();return}if(view==='resume'){modal.close();return}if(view==='battle'){battle();return}if(view==='party'){modal.classList.remove('start-menu');document.querySelector('#modalTitle').textContent='Your party';body.innerHTML='<div class="party-panel">'+document.querySelector('.party').innerHTML+'</div>';if(!modal.open)modal.showModal();return}openView(view)}
 document.querySelector('#gameMenu').onclick=openMenu;
 modal.addEventListener('cancel',e=>{e.preventDefault();if(modal.classList.contains('start-menu'))modal.close();else openMenu()});
 document.querySelector('#closeModal').onclick=()=>{if(modal.classList.contains('start-menu'))modal.close();else openMenu()};
@@ -104,7 +110,11 @@ const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');let lastAmbie
 let lastCharacterTick=0;
 function animateScene(now){
  const characterDt=Math.min(50,Math.max(0,now-lastCharacterTick));lastCharacterTick=now;
- if(!document.hidden&&!modal.open&&!creator?.dialog.open&&!currentRoom){const goal=rowanWaypoint(runtime.state.characterMemory,rowan),dx=goal.x-rowan.x,dy=goal.y-rowan.y,distance=Math.hypot(dx,dy);if(distance>.2){const length=Math.min(distance,characterDt*.07),next=advance(rowan,dx/distance*length,dy/distance*length);if(next.x!==rowan.x||next.y!==rowan.y)rowanWalkingUntil=now+100;rowan.x=next.x;rowan.y=next.y;draw()}}
+ const combatActive=!document.hidden&&!modal.open&&!creator?.dialog.open&&!dialogue.active&&!currentRoom;
+ encounters.step(characterDt,player,{active:combatActive});
+ if(combatActive)rowan.home=rowanGoal(runtime.state.characterMemory);
+ const hp=document.querySelector('.hud-health .health i');if(hp)hp.style.width=`${encounters.hp/encounters.maxHp*100}%`;document.querySelector('.hud-health').setAttribute('aria-label',`Health ${encounters.hp} of ${encounters.maxHp}`);
+
 
  if(now-lastGuidance>120){lastGuidance=now;const guidance=nextGuidance(runtime.state,player,currentRoom,rowan),el=document.querySelector('#questTracker');el.querySelector('strong').textContent=guidance.title;el.querySelector('span').textContent=guidance.text;}
 
@@ -116,7 +126,7 @@ function animateScene(now){
  }
  document.querySelectorAll('[data-skill]').forEach(button=>{const name=button.dataset.skill;if(!ACTIONS[name])return;const left=Math.max(0,(actionReady[name]||0)-now);button.style.setProperty('--cooldown',`${left/actionDefinition(name).cooldown*100}%`);button.classList.toggle('cooling',left>0)});
  if(!document.hidden&&document.querySelector('#battleCanvas')&&battleAnimation&&now-battleAnimation.start<1500)drawBattle();
- if(!document.hidden&&(!reducedMotion.matches||now<walkingUntil+100||now-attackStart<activeDuration()+100||now-generatedSkillStart<1500)&&now-lastAmbient>40){draw();lastAmbient=now}requestAnimationFrame(animateScene)}requestAnimationFrame(animateScene);
+ if(!document.hidden&&(!reducedMotion.matches||combatActive||now<walkingUntil+100||now-attackStart<activeDuration()+100||now-generatedSkillStart<1500)&&now-lastAmbient>40){draw();lastAmbient=now}requestAnimationFrame(animateScene)}requestAnimationFrame(animateScene);
 
 modal.addEventListener('close',()=>playSound('close'));
 document.addEventListener('click',e=>{if(e.target.closest('[data-menu], [data-view]'))playSound('select')});
@@ -124,7 +134,7 @@ body.addEventListener('focusin',e=>{if(e.target.matches('[data-menu]'))playSound
 
 document.querySelector('#comboGuide').onclick=()=>showGameView('combos');
 
-function requestQuest(){if(modal.open||dialogue.active||creator?.dialog.open)return;if(currentRoom||Math.hypot(player.x-rowan.x,player.y-rowan.y)>58){dialogue.speak([{speaker:'Evergreen',thought:true,text:currentRoom?'I left Rowan outside by the inn.':'Rowan is over by the inn. I can barely hear him from here.'}]);return}dialogue.speak(rowanConversation(runtime.state.characterMemory),()=>{runtime.requestQuest();engineUI.show('quests')})}
+function requestQuest(){if(modal.open||dialogue.active||creator?.dialog.open)return;if(rowan.hostile||rowan.downUntil){toast(rowan.downUntil?'Rowan is recovering. Give him a moment.':'Rowan is defending himself. Back away and let him calm down.');return}if(currentRoom||Math.hypot(player.x-rowan.x,player.y-rowan.y)>58){dialogue.speak([{speaker:'Evergreen',thought:true,text:currentRoom?'I left Rowan outside by the inn.':'Rowan is over by the inn. I can barely hear him from here.'}]);return}dialogue.speak(rowanConversation(runtime.state.characterMemory),()=>{runtime.requestQuest();engineUI.show('quests')})}
 function useAwakening(){if(modal.open||dialogue.active||creator?.dialog.open)return;const content=runtime.activeOffer()?.content,now=performance.now();if(!content){toast('Accept an awakening to unlock its skill.');return}if(now<generatedSkillReady)return;generatedSkillStart=now;generatedSkillReady=now+content.skill.cooldownMs;playSound('Rally');draw()}
 const generation=new GenerationQueue(runtime,{onStatus:s=>engineUI.setStatus(s)});
 engineUI=installGameUI({runtime,queue:generation,modal,body,title:document.querySelector('#modalTitle'),redraw:draw,onAccept:()=>{playSound('Rally');toast('Awakening accepted. Press 5 to try your new skill.')}});

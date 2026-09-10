@@ -47,7 +47,7 @@ Three sequences trigger special finishers:
 
 Let each action finish, then start the next within **1.6 seconds**. Cooldown-blocked inputs do not count. The combo guide displays the selected weapon’s move names, and the HUD tracks sequence progress.
 
-A staged boss battle also previews the customized player attacking and a healer casting, with floating combat indicators. **Overworld combat and generated skills are visual previews; projectile hit detection, real PvP, and a complete damage system are not implemented.**
+A staged boss battle also previews the customized player attacking and a healer casting, with floating combat indicators. Overworld attacks now deal damage using facing, weapon range, and wall checks. Real multiplayer PvP, simulated projectile travel, and generated skill damage are still not implemented.
 
 ### Receive AI-generated content
 
@@ -55,6 +55,7 @@ The server requests structured content from the OpenAI Responses API. Results ar
 
 | Content | Trigger |
 | --- | --- |
+| NPC reaction | A landed hit, at most once per character per 30 seconds of active play; replies are grounded in that hit |
 | Character or name | Explicit creator button: description, random character, or name |
 | First quest | Speak to Rowan near the inn |
 | Follow-up quest | Complete the current quest; one new request is queued automatically |
@@ -145,7 +146,7 @@ See [ENGINE.md](docs/ENGINE.md) for generation timing, persistence, validation, 
 ## Current limits
 
 - No multiplayer, accounts, server-authoritative gameplay, or cloud saves.
-- No actual assistance/hostility encounters or good/evil progression yet. The AI does not infer morality from exploration or practice.
+- NPC hostility and retaliation are implemented. Assistance encounters and good/evil progression are not; striking a character records a fact but does not automatically assign moral traits.
 - Quest variety is bounded by three rooms and three combos; new quest titles do not create new playable locations or mechanics.
 - AI character generation selects supported features and may add custom pixel details. Weapon starter moves are authored, not invented by the LLM.
 - Appearance attachments use bounded pixel rectangles; generated awakening skills use supported visual primitives.
@@ -160,7 +161,7 @@ npm test
 npm run build
 ```
 
-The 44 automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
+The automated tests cover collision, combos, weapon poses, character persistence, generation contracts, quest progression and diversity, awakening decisions, API caching, and error handling. Tests stub OpenAI requests and do not spend API credits. Manual browser checks have also covered onboarding, AI draft review, touch layout, battle animation, and live generation.
 
 
 ## Railway deployment
@@ -170,3 +171,12 @@ The 44 automated tests cover collision, combos, weapon poses, character persiste
 Set `OPENAI_API_KEY` and `OPENAI_MODEL` in the service's Railway Variables. The model must be available to your API project. Local `.env` files are not deployed or automatically loaded by the production server. Optionally set `OPENAI_MAX_GENERATIONS` (default 20 attempts per server process; shared by all visitors and reset on restart).
 
 Deploy the updated source, then check `/api/generation/status`: it should return JSON `{"configured":true}`, not the game HTML. This confirms configuration is present, not model access or billing validity; test a character name request to verify the provider connection.
+
+
+## Roaming encounters
+
+Ash Raider and Cinder Sentry patrol the southern road and attack when approached. Rowan, Lunara, Clover and Foxglove wander near their homes and defend themselves when struck. Face a target and use Space, Q, E or R; combos deal stronger hits. Walls block attacks, including ranged weapon strikes. Orange wind-up rings warn of an incoming strike: move away or roll with Shift. Guard reduces damage briefly, and a potion (4) heals 40 HP with an eight-second cooldown.
+
+Characters pursue using collision-checked paths, calm down after disengagement, and yield when their health reaches zero. They recover after 18 seconds of active outdoor play. Player defeat restores health at the outpost. Menus, dialogue, hidden tabs and interiors pause outdoor combat. Combat health and actor positions reset on reload; recorded provocations and received AI dialogue remain in the journal.
+
+A struck character immediately protests using an authored line. When AI is connected, a separate bounded request generates a short personal response; it never controls damage or movement. Replies arrive in overhead speech bubbles without pausing combat and are discarded if the character has already yielded or disengaged. Provider failures keep the authored response and show an availability message. These requests share the server's existing per-process generation budget with quests and character creation.

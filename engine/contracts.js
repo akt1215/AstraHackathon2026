@@ -1,3 +1,4 @@
+import {ACTORS} from '../content/encounters.js';
 import {HAIRSTYLES,CLOTHES,WEAPONS} from '../content/characters.js';
 const str=(maxLength=240)=>({type:'string',minLength:1,maxLength});
 const num=(minimum,maximum)=>({type:'integer',minimum,maximum});
@@ -8,6 +9,7 @@ const pixel=obj({x:num(-48,48),y:num(-52,30),w:num(1,16),h:num(1,16),color});
 const effect=obj({shape:{type:'string',enum:['ring','ray','orbit']},color,radius:num(8,60),count:num(4,24),rotation:num(-6,6)});
 const sourceEventIds=list(str(100),20);
 export const SCHEMAS={
+ reaction:obj({speaker:{type:'string',enum:ACTORS.map(a=>a.id)},line:str(160),sourceEventIds}),
  character:obj({name:str(24),heroClass:{type:'string',enum:['Warrior','Mage','Rogue','Healer']},hairStyle:{type:'string',enum:HAIRSTYLES},hairColor:color,skinColor:color,clothing:{type:'string',enum:CLOTHES},outfitColor:color,weapon:{type:'string',enum:Object.keys(WEAPONS)},bio:str(300),characterArt:list(pixel,48,0)}),
  name:obj({name:str(24)}),
  awakening:obj({name:str(60),description:str(500),reason:str(400),tradeoff:str(250),sourceEventIds,appearance:list(pixel,96),skill:obj({name:str(60),description:str(250),durationMs:num(400,1400),cooldownMs:num(1500,8000),effects:list(effect,4)})}),
@@ -23,6 +25,7 @@ export function matches(schema,value){
 }
 export function validateContent(kind,value,events){
  if(!SCHEMAS[kind]||!matches(SCHEMAS[kind],value))throw new Error('Generated content does not match the engine contract.');
+ if(kind==='reaction'&&(!value.sourceEventIds.length||!value.sourceEventIds.every(id=>events.some(e=>e.id===id&&e.type==='combat_hit'&&e.target===value.speaker))))throw new Error('Reaction must cite a hit on the speaking character.');
  const allowed=new Set(events.map(e=>e.id));
  if((value.sourceEventIds||[]).some(id=>!allowed.has(id)))throw new Error('Generated content cites unknown events.');
  if(kind==='quest'&&value.objectives.some(o=>!(o.type==='visit_room'?['inn','smith','home']:['Cleave','Cyclone','Breaker']).includes(o.target)))throw new Error('Quest objective cannot be executed.');
