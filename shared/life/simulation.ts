@@ -73,6 +73,8 @@ export class LifeSimulation {
     if (!path) throw new LifeError('That destination cannot be reached.');
     this.clear(r, false);
     activity.destination = destination;
+    activity.phase = destination ? 'walking' : 'doing';
+    activity.elapsed = 0;
     r.activity = activity;
     if (object) object.occupiedBy = r.id;
     this.paths.set(activity.id, path);

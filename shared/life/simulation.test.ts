@@ -72,4 +72,15 @@ describe('continuous life simulation', () => {
     const request = sim.beginTalk('june', 'Hello'); command(sim, { kind: 'cancel' });
     expect(sim.applyReaction(request, { action: 'accept_chat', speech: 'Too late' })).toBe(false);
   });
+  it('approaches another resident and makes repeated insults cause a later refusal', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'social', targetId: 'june', action: 'chat' }); advance(sim, 10);
+    expect(player(sim).relationships.june).toBeGreaterThan(12);
+    expect(sim.state().events.some(e => e.kind === 'social' && e.targetId === 'june')).toBe(true);
+    for (let i = 0; i < 3; i++) { command(sim, { kind: 'social', targetId: 'june', action: 'insult' }); advance(sim, 12); }
+    expect(player(sim).relationships.june).toBeLessThan(-12);
+    command(sim, { kind: 'social', targetId: 'june', action: 'share' }); advance(sim, 12);
+    expect(sim.state().events.some(e => e.actor === 'june' && e.kind === 'declined' && e.text.includes('history'))).toBe(true);
+    expect(sim.state().residents.find(r => r.id === 'june')!.memories.some(m => m.kind === 'insult')).toBe(true);
+  });
 });
