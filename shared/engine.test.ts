@@ -170,3 +170,18 @@ describe('spoken language and recognized voices',()=>{
   expect(obs?.text).toContain('The gate is closed.');expect(obs?.actor).toBeUndefined();
  });
 });
+
+describe('observation grounding',()=>{
+ it('sees an impact without identifying a thrower hidden behind the gate',()=>{
+  const w=createWorld();at(w,'player',12,4);w.entities.key.location={kind:'held',actor:'player'};
+  const r=act(w,[{kind:'move',entity:'key',x:10,y:4,style:'throw'}]);expect(r.ok).toBe(true);
+  const impact=actorView(r.world,'guard').observations.find(o=>o.kind==='impact');expect(impact).toBeDefined();expect(impact?.actor).toBeUndefined();
+ });
+ it('does not deliver allegations through a closed gate that blocks intelligible speech',()=>{
+  const w=createWorld();at(w,'player',4,5);w.actors.guard.facing='east';
+  const r=act(w,[{kind:'transfer',entity:'medicine',to:'player'}]);const obs=actorView(r.world,'companion').observations.find(o=>o.kind==='take')!;
+  at(r.world,'companion',12,4);at(r.world,'guard',10,4);r.world.actors.companion.facing='west';
+  r.world.actors.companion.memories.push({id:'prior-voice',eventId:'prior',tick:0,kind:'speech_heard',text:'Mara spoke before.',location:{x:10,y:4},actor:'guard',lineage:[]});
+  const report=act(r.world,[{kind:'emote',topic:'report',target:'guard',text:'They took medicine.',evidence:[obs.id]}],'companion');expect(report.ok).toBe(false);expect(actorView(report.world,'guard').knownIssues).toHaveLength(0);
+ });
+});

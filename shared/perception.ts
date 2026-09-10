@@ -24,7 +24,7 @@ export function perceive(w:World,event:WorldEvent):void{
   const wasAsleep=a.wakefulness==='asleep';
   if(wasAsleep){if(event.noise<7||!heard)continue;a.wakefulness='awake';a.awakenedTick=w.phase&&!w.phase.finalized?w.tick:w.tick+1;a.mood='startled awake';}
   if(a.memories.some(o=>o.eventId===event.id))continue;
-  if(visible&&!wasAsleep){event.witnesses.push(a.id);a.memories.push({id:`${event.id}:${a.id}`,eventId:event.id,tick:w.tick,kind:event.kind,text:event.text,location:{...event.location},actor:event.actor,subject:event.subject,lineage:[event.id]});}
+  if(visible&&!wasAsleep){event.witnesses.push(a.id);a.memories.push({id:`${event.id}:${a.id}`,eventId:event.id,tick:w.tick,kind:event.kind,text:event.text,location:{...event.location},...(a.id===event.actor||Boolean(position(w,event.actor)&&canSee(w,a.id,position(w,event.actor)!))?{actor:event.actor}:{}),subject:event.subject,lineage:[event.id]});}
   else if(heard&&event.kind==='speech'&&typeof event.data?.speech==='string'&&!line(p,event.location).slice(0,-1).some(c=>w.walls.some(v=>v.x===c.x&&v.y===c.y)||Object.values(w.entities).some(e=>e.kind==='fixture'&&e.props.solid&&!e.props.open&&position(w,e.id)?.x===c.x&&position(w,e.id)?.y===c.y))){
    const recognized=Boolean(a.relationships[event.actor])||a.memories.some(o=>o.actor===event.actor&&o.kind!=='report');
    a.memories.push({id:`${event.id}:${a.id}`,eventId:event.id,tick:w.tick,kind:'speech_heard',text:`${recognized?w.entities[event.actor].name:'Someone'}: ${event.data.speech}`,location:{...event.location},...(recognized?{actor:event.actor}:{}),lineage:[event.id]});

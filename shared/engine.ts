@@ -143,6 +143,7 @@ function emote(w:World,id:string,op:Extract<Primitive,{kind:'emote'}>):void{
   const knownClaims=actorView(w,id).knownIssues;
   const report=emit(w,id,'speech',`${entity(w,id).name}: ${op.text}`,pos(w,id),{target:op.target,noise:6,data:{speech:op.text}});
   const receiver=w.actors[op.target];
+  if(!receiver.memories.some(o=>o.eventId===report.id&&(o.kind==='speech'||o.kind==='speech_heard')))fail('The listener cannot make out the report from here.');
   for(const issue of issues){
    const claim=knownClaims.find(i=>i.id===issue.id)!;
    const settlements=a.memories.flatMap(o=>o.lineage).filter(ref=>w.events.some(e=>e.id===ref&&e.kind==='settle'&&e.subject===issue.id));
