@@ -1,15 +1,16 @@
 import {
   AbstractMesh, AnimationGroup, ArcRotateCamera, Color3, Color4, DirectionalLight, DynamicTexture, Engine,
   HemisphericLight, Matrix, Mesh, MeshBuilder, PointerEventTypes, Scene,
-  PBRMaterial, SceneLoader, Space, ShadowGenerator, StandardMaterial, Texture, TransformNode, Vector3,
+  PBRMaterial, SceneLoader, Space, ShadowGenerator, Texture, TransformNode, Vector3, VertexData, VertexBuffer,
 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
+import { createCinematicAtmosphere, applyScannedMaterial } from './life-materials';
 import { STATIC_FIXTURES } from '../../shared/life/layout';
 import type { LifeObject, LifeResident, LifeScene, LifeSceneHooks, LifeState, LifeTheme } from '../../shared/life-types';
 
 type Palette = { wall: string; accent: string; sofa: string; blanket: string; wood: string; sky: string; trim: string };
 const PALETTES: Record<LifeTheme, Palette> = {
-  loft: { wall: '#ebe0cc', accent: '#bd613e', sofa: '#ce855c', blanket: '#657e72', wood: '#945d39', sky: '#c8b8b0', trim: '#33494a' },
+  loft: { wall: '#cfc2ab', accent: '#ad6846', sofa: '#697253', blanket: '#a96544', wood: '#a28d73', sky: '#253545', trim: '#283234' },
   lantern: { wall: '#d6bb92', accent: '#aa342d', sofa: '#a3483d', blanket: '#385e57', wood: '#6e3e2a', sky: '#666b85', trim: '#482f2b' },
   comic: { wall: '#f5e8cf', accent: '#ec6959', sofa: '#507ab8', blanket: '#e9af39', wood: '#b88a57', sky: '#80afc7', trim: '#273552' },
 };
@@ -28,10 +29,10 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, powerPreference: 'high-performance', adaptToDeviceRatio: false });
   engine.setHardwareScalingLevel(1);
   const scene = new Scene(engine);
-  scene.clearColor = Color4.FromHexString('#c8b8b0ff');
-  scene.ambientColor = new Color3(.22, .2, .18);
+  scene.clearColor = Color4.FromHexString('#253545ff');
+  scene.ambientColor = new Color3(.06, .07, .1);
   scene.imageProcessingConfiguration.toneMappingEnabled = true;
-  scene.imageProcessingConfiguration.exposure = 1.05;
+  scene.imageProcessingConfiguration.exposure = 1.5;
   scene.imageProcessingConfiguration.contrast = 1.12;
   const camera = new ArcRotateCamera('room-camera', -Math.PI / 2.8, 1.04, 18.6, new Vector3(6, .8, 4.9), scene);
   camera.attachControl(canvas, true);
@@ -46,24 +47,24 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   camera.maxZ = 120;
   camera.inputs.attached.keyboard?.detachControl();
   const fill = new HemisphericLight('sky-fill', new Vector3(.3, 1, -.2), scene);
-  fill.intensity = .68;
+  fill.intensity = .18;
   fill.groundColor = c3('#66504b');
-  fill.diffuse = c3('#fff1dc');
-  const sun = new DirectionalLight('late-afternoon', new Vector3(-.8, -1.5, -.6), scene);
+  fill.diffuse = c3('#a9bde3');
+  const sun = new DirectionalLight('late-afternoon', new Vector3(-.45, -1.2, -.9), scene);
   sun.position = new Vector3(14, 18, 15);
-  sun.intensity = 1.55;
-  sun.diffuse = c3('#ffe1b2');
+  sun.intensity = .85;
+  sun.diffuse = c3('#c0d1ee');
   const shadows = new ShadowGenerator(2048, sun);
   shadows.usePercentageCloserFiltering = true;
   shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
   shadows.bias = .001;
   shadows.normalBias = .025;
-  shadows.setDarkness(.24);
+  shadows.setDarkness(.12);
   sun.shadowMinZ = 1;
   sun.shadowMaxZ = 45;
   sun.autoCalcShadowZBounds = true;
-  const materials = new Map<string, StandardMaterial>();
-  const themed: Array<{ mat: StandardMaterial; key: keyof Palette }> = [];
+  const materials = new Map<string, PBRMaterial>();
+  const themed: Array<{ mat: PBRMaterial; key: keyof Palette }> = [];
   const wallFaces: Array<{ mesh: Mesh; side: 'back' | 'left' }> = [];
   const props = new Map<string, PropRig>();
   const people = new Map<string, PersonRig>();
@@ -75,18 +76,55 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   let clock = 0;
   let disposed = false;
   let lastDown = { x: 0, y: 0 };
+  const frameTimes: number[] = [];
+  let previousFrame = 0, previousMetric = 0, metricWarmupUntil = Infinity;
+  const pendingAssets: Promise<unknown>[] = [];
+  const failedAssets = new Set<string>();
+  let readySettled = false, readyStarted = false;
+  let resolveReady!: (result: { degraded: boolean; failedAssets: string[] }) => void;
+  const ready = new Promise<{ degraded: boolean; failedAssets: string[] }>(resolve => { resolveReady = resolve; });
+  const resetMetrics = (): void => {
+    frameTimes.length = 0; previousFrame = 0; previousMetric = performance.now();
+    metricWarmupUntil = readySettled ? previousMetric + 2000 : Infinity;
+    delete canvas.dataset.scenePerformance;
+  };
+  document.addEventListener('visibilitychange', resetMetrics);
+  function settleReady(): void {
+    if (readySettled) return;
+    readySettled = true; clearTimeout(readyTimeout); resetMetrics();
+    resolveReady({ degraded: failedAssets.size > 0, failedAssets: [...failedAssets] });
+  }
+  let readyTimeout: number | undefined;
+  async function prepareFirstFrame(): Promise<void> {
+    if (readyStarted) return;
+    readyStarted = true;
+    readyTimeout = window.setTimeout(() => { failedAssets.add('Scene preparation exceeded 30 seconds'); settleReady(); }, 30_000);
+    // Dining chairs can enqueue their imports after the dining table finishes.
+    let drained = 0;
+    while (drained < pendingAssets.length && !disposed) {
+      const batch = pendingAssets.slice(drained); drained = pendingAssets.length;
+      await Promise.allSettled(batch);
+    }
+    if (!disposed && !readySettled) scene.executeWhenReady(settleReady);
+  }
 
-  function material(name: string, color: string, gloss = .05): StandardMaterial {
+  const recordAssetError = (asset: string): void => { failedAssets.add(asset); };
+  function scan(mat: PBRMaterial, id: string, scale: number): void { applyScannedMaterial(mat, id, scene, scale, recordAssetError); }
+
+  function material(name: string, color: string, gloss = .05): PBRMaterial {
     const existing = materials.get(name);
     if (existing) return existing;
-    const mat = new StandardMaterial(name, scene);
-    mat.diffuseColor = c3(color);
-    mat.specularColor = new Color3(gloss, gloss, gloss);
-    mat.specularPower = 40;
+    const mat = new PBRMaterial(name, scene);
+    mat.albedoColor = c3(color).toLinearSpace();
+    mat.metallic = name.includes('brass') ? .8 : name.includes('iron') ? .6 : 0;
+    mat.roughness = Math.max(.2, .88 - gloss);
+    mat.maxSimultaneousLights = 8;
+    mat.environmentIntensity = .65;
+
     materials.set(name, mat);
     return mat;
   }
-  function themedMaterial(name: string, key: keyof Palette): StandardMaterial {
+  function themedMaterial(name: string, key: keyof Palette): PBRMaterial {
     const mat = material(name, PALETTES.loft[key]);
     themed.push({ mat, key });
     return mat;
@@ -109,7 +147,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   const glow = material('warm-lamp', '#ffdf9f');
   glow.emissiveColor = c3('#d79c45').scale(.8);
 
-  function box(name: string, dims: [number, number, number], pos: [number, number, number], mat: StandardMaterial, parent?: TransformNode, cast = true, bevel = 0): Mesh {
+  function box(name: string, dims: [number, number, number], pos: [number, number, number], mat: PBRMaterial, parent?: TransformNode, cast = true, bevel = 0): Mesh {
     const mesh = MeshBuilder.CreateBox(name, { width: dims[0], height: dims[1], depth: dims[2] }, scene);
     mesh.position.set(...pos);
     mesh.material = mat;
@@ -120,7 +158,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     if (bevel > 0) { mesh.enableEdgesRendering(); mesh.edgesWidth = bevel; mesh.edgesColor = new Color4(.15, .12, .1, .16); }
     return mesh;
   }
-  function sphere(name: string, dims: [number, number, number], pos: [number, number, number], mat: StandardMaterial, parent?: TransformNode, cast = true): Mesh {
+  function sphere(name: string, dims: [number, number, number], pos: [number, number, number], mat: PBRMaterial, parent?: TransformNode, cast = true): Mesh {
     const mesh = MeshBuilder.CreateSphere(name, { diameter: 1, segments: 10 }, scene);
     mesh.scaling.set(...dims);
     mesh.position.set(...pos);
@@ -131,7 +169,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     if (cast) shadows.addShadowCaster(mesh);
     return mesh;
   }
-  function cylinder(name: string, radius: number, height: number, pos: [number, number, number], mat: StandardMaterial, parent?: TransformNode, topRadius = radius, cast = true): Mesh {
+  function cylinder(name: string, radius: number, height: number, pos: [number, number, number], mat: PBRMaterial, parent?: TransformNode, topRadius = radius, cast = true): Mesh {
     const mesh = MeshBuilder.CreateCylinder(name, { diameterTop: topRadius * 2, diameterBottom: radius * 2, height, tessellation: 18 }, scene);
     mesh.position.set(...pos); mesh.material = mat; mesh.parent = parent ?? null;
     mesh.isPickable = Boolean(parent?.metadata?.objectId || parent?.metadata?.residentId);
@@ -139,7 +177,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     if (cast) shadows.addShadowCaster(mesh);
     return mesh;
   }
-  function beam(name: string, a: Vector3, b: Vector3, radius: number, mat: StandardMaterial, parent?: TransformNode): Mesh {
+  function beam(name: string, a: Vector3, b: Vector3, radius: number, mat: PBRMaterial, parent?: TransformNode): Mesh {
     const mesh = cylinder(name, radius, Vector3.Distance(a, b), [0, 0, 0], mat, parent);
     mesh.position.copyFrom(a.add(b).scale(.5));
     mesh.rotationQuaternion = null;
@@ -154,39 +192,25 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     tex.anisotropicFilteringLevel = 8;
     return tex;
   }
-  function textile(mat: StandardMaterial): void {
-    const tex = texture(`${mat.name}-weave`, (ctx, n) => {
-      ctx.fillStyle = '#d9d6ce'; ctx.fillRect(0, 0, n, n);
-      for (let k = 0; k < n; k += 4) { ctx.fillStyle = k % 8 ? '#ccc9c1' : '#eee8db'; ctx.fillRect(k, 0, 1, n); ctx.fillRect(0, k, n, 1); }
-    }, 128);
-    tex.uScale = 3; tex.vScale = 3; mat.diffuseTexture = tex;
-  }
-  textile(upholstery); textile(blanket);
+  scan(wood, 'wood_floor', .65);
+  scan(wall, 'plastered_wall', 1.5);
+  scan(upholstery, 'rough_linen', 6);
+  scan(blanket, 'rough_linen', 6);
 
   // Continuous oak flooring keeps geometry inexpensive while retaining individual grain and joints.
   const floorMat = material('oak-floorboards', '#ffffff');
-  floorMat.diffuseTexture = texture('oak-grain', (ctx, n) => {
-    ctx.fillStyle = '#a47750'; ctx.fillRect(0, 0, n, n);
-    for (let row = 0; row < 12; row++) {
-      const h = n / 12;
-      for (let col = -1; col < 4; col++) {
-        const x = col * n / 3 + (row % 2) * n / 6;
-        const v = (row * 29 + col * 17 + 100) % 35;
-        ctx.fillStyle = `rgb(${159 + v},${111 + v},${73 + v})`; ctx.fillRect(x + 1, row * h + 1, n / 3 - 2, h - 2);
-        for (let grain = 0; grain < 12; grain++) {
-          ctx.strokeStyle = `rgba(81,48,27,${.025 + (grain % 3) * .015})`; ctx.lineWidth = .5;
-          ctx.beginPath(); ctx.moveTo(x + 3, row * h + 3 + grain * 3);
-          ctx.bezierCurveTo(x + 45, row * h + 8 + grain * 2.7, x + 100, row * h + grain * 3, x + n / 3 - 2, row * h + 4 + grain * 3); ctx.stroke();
-        }
-      }
-    }
-  }, 1024);
-  (floorMat.diffuseTexture as Texture).uScale = 2; (floorMat.diffuseTexture as Texture).vScale = 2;
+  scan(floorMat, 'wood_floor', 6); floorMat.roughness = 1; floorMat.metallicF0Factor = .4;
   box('floating-foundation', [12.3, .3, 10.3], [6, -.18, 5], dark, undefined, false);
   const floor = MeshBuilder.CreateGround('walkable-oak', { width: 12, height: 10 }, scene);
   floor.position.set(6, 0, 5); floor.material = floorMat; floor.receiveShadows = true; floor.metadata = { ground: true };
   box('front-brass-inlay', [12.1, .025, .022], [6, .015, -.05], brass, undefined, false);
-  const backWall = box('back-plaster', [12, 3.35, .12], [6, 1.675, 10.04], wall, undefined, false);
+  const backWall = box('back-plaster-dado', [12, .66, .2], [6, .33, 10.04], wall, undefined, false);
+  for (const [px, pw] of [[1.44, 2.88], [6.34, .44], [10.85, 2.3]]) {
+    const pier = box('back-plaster-pier', [pw!, 3.65, .24], [px!, 1.825, 10.04], wall, undefined, false);
+    wallFaces.push({ mesh: pier, side: 'back' });
+  }
+  const lintel = box('structural-window-lintel', [12.2, .22, .3], [6, 3.55, 10.04], wood, undefined, false);
+  wallFaces.push({ mesh: lintel, side: 'back' });
   const leftWall = box('left-plaster', [.12, 3.35, 10], [-.04, 1.675, 5], wall, undefined, false);
   wallFaces.push({ mesh: backWall, side: 'back' }, { mesh: leftWall, side: 'left' });
   box('back-skirting', [12, .16, .055], [6, .08, 9.94], cream, undefined, false);
@@ -194,29 +218,22 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   box('back-picture-rail', [12, .055, .07], [6, 3.14, 9.93], cream, undefined, false);
   box('left-picture-rail', [.07, .055, 10], [.04, 3.14, 5], cream, undefined, false);
 
-  const windowMat = material('painted-city-window', '#ffffff');
-  const skyline = texture('original-sunset-city', (ctx, n) => {
-    const grad = ctx.createLinearGradient(0, 0, 0, n); grad.addColorStop(0, '#bdc6cd'); grad.addColorStop(.55, '#e9c8ad'); grad.addColorStop(1, '#e5ba8f');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, n, n);
-    ctx.fillStyle = '#ffe6b5'; ctx.beginPath(); ctx.arc(n * .75, n * .25, n * .065, 0, Math.PI * 2); ctx.fill();
-    for (let layer = 0; layer < 3; layer++) {
-      for (let i = 0; i < 19; i++) {
-        const w = 22 + (i * 19 + layer * 7) % 22; const h = 45 + (i * 53 + layer * 61) % 165;
-        const x = i * 31 - 15; const y = n - h - 65 + layer * 34;
-        ctx.fillStyle = ['#a4a8b2', '#838c9c', '#687b8c'][layer]; ctx.fillRect(x, y, w, n - y);
-        ctx.fillRect(x + w / 3, y - 8, w / 3, 8);
-        for (let wy = y + 10; wy < n; wy += 15) for (let wx = x + 5; wx < x + w - 4; wx += 9) {
-          ctx.fillStyle = (wx + wy + i) % 3 ? '#e9c390' : '#99a7b4'; ctx.fillRect(wx, wy, 3, 6);
-        }
-      }
-    }
-  });
-  windowMat.diffuseTexture = skyline; windowMat.emissiveColor = new Color3(.25, .23, .22);
+  const windowFallbacks: Array<{ x: number; meshes: Mesh[] }> = [];
   for (const x of [4.65, 8.05]) {
-    box('city-view', [2.85, 2.24, .045], [x, 1.98, 9.945], windowMat, undefined, false);
-    for (const dx of [-1.48, 0, 1.48]) box('window-mullion', [.055, 2.38, .1], [x + dx, 1.98, 9.865], trim, undefined, false);
-    for (const y of [.79, 1.75, 3.17]) box('window-crossbar', [3.02, .055, .1], [x, y, 9.85], trim, undefined, false);
-    box('stone-window-sill', [3.14, .085, .25], [x, .76, 9.79], cream);
+    const pane = box('city-view-glass', [2.85, 2.72, .02], [x, 2.05, 9.985], glass, undefined, false);
+    glass.alpha = .09; glass.roughness = .08; glass.metallic = .1; pane.isPickable = false;
+    const frameStart = scene.meshes.length;
+    for (const dx of [-1.48, 0, 1.48]) box('window-mullion', [.065, 2.84, .14], [x + dx, 2.07, 9.865], trim, undefined, false);
+    for (const y of [.66, 1.66, 2.55, 3.49]) box('window-crossbar', [3.02, .055, .1], [x, y, 9.85], trim, undefined, false);
+    box('stone-window-sill', [3.14, .085, .25], [x, .64, 9.79], cream);
+    windowFallbacks.push({ x, meshes: scene.meshes.slice(frameStart) as Mesh[] });
+  }
+
+  for (const x of [2.7, 9.8]) {
+    cylinder('sconce-brass-mount', .075, .22, [x, 2.55, 9.82], brass);
+    const bulb = sphere('sconce-opal-globe', [.17, .24, .17], [x, 2.78, 9.8], glow);
+    bulb.isPickable = false;
+    box('sconce-wall-plate', [.1, .32, .04], [x, 2.56, 9.87], brass, undefined, false);
   }
 
   function artwork(x: number, z: number, side: 'back' | 'left', variant: number): void {
@@ -224,7 +241,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     if (side === 'left') root.rotation.y = Math.PI / 2;
     box('oak-art-frame', [1.04, 1.27, .08], [0, 0, 0], wood, root, false);
     const artMat = material(`original-art-${variant}`, '#ffffff');
-    artMat.diffuseTexture = texture(`abstract-print-${variant}`, (ctx, n) => {
+    artMat.albedoTexture = texture(`abstract-print-${variant}`, (ctx, n) => {
       ctx.fillStyle = '#eee3ce'; ctx.fillRect(0, 0, n, n);
       ctx.fillStyle = variant ? '#6c8580' : '#cb7555'; ctx.beginPath(); ctx.arc(n * .49, n * .4, n * .27, Math.PI, 0); ctx.lineTo(n * .76, n * .76); ctx.lineTo(n * .22, n * .76); ctx.fill();
       ctx.fillStyle = '#d9b25f'; ctx.beginPath(); ctx.arc(n * .7, n * .28, n * .12, 0, Math.PI * 2); ctx.fill();
@@ -237,7 +254,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
 
   function rug(name: string, x: number, z: number, w: number, d: number, color: string, pattern: 'border' | 'stripe'): void {
     const mat = material(name, '#ffffff');
-    mat.diffuseTexture = texture(`${name}-design`, (ctx, n) => {
+    mat.albedoTexture = texture(`${name}-design`, (ctx, n) => {
       ctx.fillStyle = color; ctx.fillRect(0, 0, n, n);
       ctx.strokeStyle = '#ddc6a1'; ctx.lineWidth = 9; ctx.strokeRect(18, 18, n - 36, n - 36); ctx.lineWidth = 2; ctx.strokeRect(33, 33, n - 66, n - 66);
       if (pattern === 'border') for (let y = 70; y < n - 50; y += 45) for (let x = 70; x < n - 50; x += 45) { ctx.fillStyle = '#d9b38b'; ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 6, y); ctx.fill(); }
@@ -256,12 +273,26 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     cylinder('terracotta-pot', .22, .38, [0, .19, 0], accent, root, .29);
     cylinder('pot-rim', .3, .075, [0, .38, 0], accent, root);
     cylinder('rich-soil', .265, .015, [0, .415, 0], soil, root, .265, false);
-    for (let i = 0; i < 8; i++) {
-      const angle = i * 2.4; const height = .55 + (i % 3) * .16;
-      const px = Math.sin(angle) * .3; const pz = Math.cos(angle) * .3;
-      beam('plant-stem', new Vector3(0, .4, 0), new Vector3(px, height + .27, pz), .017, leaf, root);
-      const blade = sphere('broad-leaf', [.22, .48, .065], [px, height + .33, pz], i % 2 ? leaf : leafLight, root);
-      blade.rotation.set(.4 * Math.cos(angle), angle, .5 * Math.sin(angle));
+    for (let i = 0; i < 13; i++) {
+      const angle = i * 2.39996; const height = .65 + (i % 5) * .13;
+      const spread = .22 + (i % 3) * .075;
+      const px = Math.sin(angle) * spread, pz = Math.cos(angle) * spread;
+      beam('plant-stem', new Vector3(0, .41, 0), new Vector3(px, height, pz), .012, leaf, root);
+      const positions: number[] = [], indices: number[] = [], uvs: number[] = [], normals: number[] = [];
+      const length = .35 + (i % 3) * .055;
+      for (let row = 0; row <= 8; row++) for (let col = 0; col <= 4; col++) {
+        const t = row / 8, across = (col / 4 - .5) * 2;
+        const width = Math.pow(Math.sin(Math.PI * t), .72) * .115;
+        positions.push(across * width, t * length, Math.sin(t * Math.PI) * .065 - across * across * .035);
+        uvs.push(col / 4, t);
+        if (row < 8 && col < 4) { const v = row * 5 + col; indices.push(v, v + 5, v + 1, v + 1, v + 5, v + 6); }
+      }
+      VertexData.ComputeNormals(positions, indices, normals);
+      const blade = new Mesh('curved-botanical-leaf', scene), data = new VertexData();
+      data.positions = positions; data.indices = indices; data.normals = normals; data.uvs = uvs; data.applyToMesh(blade);
+      blade.parent = root; blade.position.set(px, height, pz); blade.rotation.set(.65 + i % 3 * .18, angle, .2 * Math.sin(angle));
+      blade.material = i % 3 ? leaf : leafLight; (blade.material as PBRMaterial).backFaceCulling = false;
+      blade.receiveShadows = true; shadows.addShadowCaster(blade);
     }
   }
   for (const fixture of STATIC_FIXTURES.filter(item => item.id.startsWith('corner-pot-'))) plant(undefined, fixture.x, 0, fixture.z, fixture.width / .6);
@@ -293,10 +324,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   kitchenRoot.rotation.y = -Math.PI / 2; kitchenRoot.position.set(counterFixture.x + 2.2, 0, counterFixture.z - counterFixture.depth / 2); kitchenRoot.scaling.x = counterFixture.depth / 1.06;
   for (const mesh of scene.meshes.slice(kitchenStart)) mesh.parent = kitchenRoot;
 
+  const lampShade = material('warm-linen-lampshade', '#dac5a2');
+  scan(lampShade, 'rough_linen', 4); lampShade.emissiveColor = c3('#bc8c4e').toLinearSpace().scale(.2);
   function floorLamp(x: number, z: number): void {
     cylinder('lamp-foot', .25, .04, [x, .035, z], dark);
     cylinder('lamp-stem', .025, 1.9, [x, .99, z], brass);
-    cylinder('linen-lampshade', .38, .43, [x, 1.91, z], cream, undefined, .28);
+    cylinder('linen-lampshade', .38, .43, [x, 1.91, z], lampShade, undefined, .28);
     cylinder('lampshade-glow', .33, .015, [x, 1.69, z], glow, undefined, .33, false);
   }
   for (const fixture of STATIC_FIXTURES.filter(item => item.id.startsWith('floor-lamp-'))) floorLamp(fixture.x, fixture.z);
@@ -316,7 +349,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   for (let i = 0; i < 12; i++) box('inn-wood-lattice', [.055, 2.9, .055], [.13, 1.5, 5.5 + i * .34], wood, lanternDecor, false);
   const comicDecor = new TransformNode('comic-city-details', scene);
   const comicPrint = material('comic-wall-print', '#ffffff');
-  comicPrint.diffuseTexture = texture('original-comic-city-print', (ctx, n) => {
+  comicPrint.albedoTexture = texture('original-comic-city-print', (ctx, n) => {
     ctx.fillStyle = '#f6c84b'; ctx.fillRect(0, 0, n, n);
     for (let y = 0; y < n; y += 13) for (let x = 0; x < n; x += 13) { ctx.fillStyle = '#e9a447'; ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.fill(); }
     ctx.fillStyle = '#eb6a58'; ctx.beginPath();
@@ -329,14 +362,14 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   lanternDecor.setEnabled(false); comicDecor.setEnabled(false);
 
   // Batch small architectural pieces sharing materials; props retain their individual pick IDs.
-  const staticGroups = new Map<StandardMaterial, Mesh[]>();
+  const staticGroups = new Map<PBRMaterial, Mesh[]>();
   const wallSet = new Set(wallFaces.map(face => face.mesh));
   for (const mesh of [...scene.meshes]) {
     if (!(mesh instanceof Mesh) || mesh === floor || wallSet.has(mesh) || mesh.parent || !mesh.material || mesh.getTotalVertices() === 0) continue;
     const nearBack = mesh.position.z > 9.74; const nearLeft = mesh.position.x < .15;
     if (nearBack || nearLeft) { wallFaces.push({ mesh, side: nearBack ? 'back' : 'left' }); continue; }
     if (mesh.isPickable || mesh.material === glow) continue;
-    const mat = mesh.material as StandardMaterial;
+    const mat = mesh.material as PBRMaterial;
     const group = staticGroups.get(mat) ?? []; group.push(mesh); staticGroups.set(mat, group);
   }
   for (const meshes of staticGroups.values()) {
@@ -345,6 +378,59 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     const merged = Mesh.MergeMeshes(meshes, true, true, undefined, false, false);
     if (merged) { merged.name = 'batched-architecture'; merged.isPickable = false; merged.receiveShadows = true; if (hadShadow) shadows.addShadowCaster(merged); }
   }
+
+  const atmosphere = createCinematicAtmosphere(scene, camera, recordAssetError);
+
+  const cinematicLinen = material('cinematic-neutral-linen', '#d7c9ae');
+  scan(cinematicLinen, 'rough_linen', 6);
+  const cinematicRust = themedMaterial('cinematic-rust-fabric', 'accent');
+  scan(cinematicRust, 'rough_linen', 6);
+  const cinematicOak = material('cinematic-oak-joinery', '#c8b99b');
+  scan(cinematicOak, 'wood_floor', .6);
+  function assetMaterial(name: string): PBRMaterial | undefined {
+    if (name.includes('fabric.sage') || name.includes('paint.sage')) return upholstery;
+    if (name.includes('fabric.terracotta')) return cinematicRust;
+    if (name.includes('fabric.linen')) return cinematicLinen;
+    if (name.includes('seam.linen')) return cream;
+    if (name.includes('wood.walnut')) return wood;
+    if (name.includes('wood.oak')) return cinematicOak;
+    if (name.includes('metal.iron')) return trim;
+    if (name.includes('metal.brass')) return brass;
+    if (name.includes('ceramic.ivory') || name.includes('stone.cream')) return cream;
+    if (name.includes('glass')) return glass;
+    return undefined;
+  }
+  function loadCinematicAsset(file: string, parent: TransformNode, objectId?: string): Promise<boolean> {
+    const work = importCinematicAsset(file, parent, objectId); pendingAssets.push(work); return work;
+  }
+  async function importCinematicAsset(file: string, parent: TransformNode, objectId?: string): Promise<boolean> {
+    try {
+      const result = await SceneLoader.ImportMeshAsync('', '/life-assets/cinematic/', `${file}.glb`, scene);
+      if (disposed || parent.isDisposed()) { result.meshes.forEach(mesh => mesh.dispose()); return false; }
+      for (const mesh of result.meshes) {
+        if (!mesh.parent) mesh.parent = parent;
+        if (mesh.material) mesh.material = assetMaterial(mesh.material.name) ?? mesh.material;
+        const tag = objectId ?? parent.metadata?.objectId;
+        mesh.metadata = tag ? { objectId: tag } : null; mesh.isPickable = Boolean(tag);
+        mesh.receiveShadows = true; shadows.addShadowCaster(mesh);
+      }
+      return true;
+    } catch (error) { failedAssets.add(`cinematic/${file}.glb`); console.warn(`Unable to load cinematic ${file}; existing geometry remains.`, error); return false; }
+  }
+
+  for (const fallback of windowFallbacks) {
+    const frame = new TransformNode('modeled-casement-window', scene);
+    frame.position.set(fallback.x, .66, 9.87); frame.scaling.y = 2.84 / 2.4;
+    void loadCinematicAsset('window-frame', frame).then(loaded => {
+      if (!loaded) return;
+      fallback.meshes.forEach(mesh => mesh.dispose());
+      for (const mesh of frame.getChildMeshes()) if (mesh instanceof Mesh) wallFaces.push({ mesh, side: 'back' });
+    });
+  }
+  const kitchenFallback = kitchenRoot.getChildMeshes();
+  const cinematicKitchen = new TransformNode('modeled-kitchen', scene);
+  cinematicKitchen.position.set(counterFixture.x, 0, counterFixture.z); cinematicKitchen.rotation.y = Math.PI;
+  void loadCinematicAsset('kitchen', cinematicKitchen).then(loaded => { if (loaded) kitchenFallback.forEach(mesh => mesh.dispose()); });
 
   function makeProp(object: LifeObject): PropRig {
     const root = new TransformNode(`object-${object.id}`, scene); root.metadata = { objectId: object.id };
@@ -424,7 +510,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       box('easel-ledge', [.97, .075, .24], [0, .93, -.05], wood, root);
       box('stretched-canvas', [.84, .75, .065], [0, 1.34, 0], cream, root);
       const paintMat = material('in-progress-painting', '#ffffff');
-      if (!paintMat.diffuseTexture) paintMat.diffuseTexture = texture('original-canvas-landscape', (ctx, n) => {
+      if (!paintMat.albedoTexture) paintMat.albedoTexture = texture('original-canvas-landscape', (ctx, n) => {
         ctx.fillStyle = '#dbcfae'; ctx.fillRect(0, 0, n, n); ctx.fillStyle = '#819c97'; ctx.fillRect(15, 15, n - 30, n * .62);
         ctx.fillStyle = '#edc879'; ctx.beginPath(); ctx.arc(n * .69, n * .3, n * .12, 0, 7); ctx.fill();
         ctx.fillStyle = '#496f61'; ctx.beginPath(); ctx.moveTo(15, n * .7); ctx.lineTo(n * .3, n * .43); ctx.lineTo(n * .53, n * .72); ctx.lineTo(n * .76, n * .48); ctx.lineTo(n - 15, n * .73); ctx.lineTo(n - 15, n - 15); ctx.lineTo(15, n - 15); ctx.fill();
@@ -445,9 +531,53 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       box('console-bottom-shelf', [w - .1, .06, d * .85], [0, .2, 0], wood, root);
       for (let i = 0; i < 3; i++) box('stacked-magazine', [.36, .035, .26], [-.1, .255 + i * .04, 0], [accent, cream, blue][i]!, root);
     }
+    const originalPosition = root.position.clone(), originalRotation = root.rotation.clone();
+    root.position.setAll(0); root.rotation.setAll(0); root.computeWorldMatrix(true);
+    const groups = new Map<PBRMaterial, Mesh[]>();
+    for (const mesh of root.getChildMeshes()) {
+      if (!(mesh instanceof Mesh) || !(mesh.material instanceof PBRMaterial)) continue;
+      mesh.computeWorldMatrix(true);
+      const group = groups.get(mesh.material) ?? []; group.push(mesh); groups.set(mesh.material, group);
+    }
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      const merged = Mesh.MergeMeshes(group, true, true, undefined, false, false);
+      if (merged) { merged.parent = root; merged.receiveShadows = true; shadows.addShadowCaster(merged); }
+    }
+    root.position.copyFrom(originalPosition); root.rotation.copyFrom(originalRotation);
+    const file = object.kind === 'sofa' ? 'sofa' : object.kind === 'bed' ? 'bed' : object.kind === 'table' ? 'dining-table' : null;
+    if (file) {
+      const fallback = root.getChildMeshes();
+      void loadCinematicAsset(file, root).then(loaded => {
+        if (loaded) fallback.forEach(mesh => mesh.dispose());
+        if (loaded && object.kind === 'table') for (const sign of [-1, 1]) {
+          const chair = new TransformNode('cinematic-dining-chair', scene); chair.parent = root;
+          chair.position.set(0, 0, sign * (d / 2 + .34)); chair.rotation.y = sign > 0 ? 0 : Math.PI;
+          void loadCinematicAsset('dining-chair', chair, object.id);
+        }
+      });
+    }
     // Tag all descendants, including nested chair/plant pieces, for object ray picks.
     for (const mesh of root.getChildMeshes()) { mesh.metadata = { objectId: object.id }; mesh.isPickable = true; }
-    return { root, signature: `${object.kind}:${w}:${d}:${object.x}:${object.z}` };
+    return { root, signature: `${object.kind}:${object.width}:${object.depth}:${object.x}:${object.z}` };
+  }
+
+  function softenCharacterNormals(mesh: AbstractMesh): void {
+    if (!(mesh instanceof Mesh)) return;
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind), indices = mesh.getIndices();
+    if (!positions || !indices) return;
+    const normals: number[] = []; VertexData.ComputeNormals(positions, indices, normals);
+    const shared = new Map<string, { sum: Vector3; vertices: number[] }>();
+    for (let i = 0; i < positions.length; i += 3) {
+      const key = `${Math.round(positions[i]! * 1e5)}:${Math.round(positions[i + 1]! * 1e5)}:${Math.round(positions[i + 2]! * 1e5)}`;
+      const group = shared.get(key) ?? { sum: Vector3.Zero(), vertices: [] };
+      group.sum.addInPlace(new Vector3(normals[i], normals[i + 1], normals[i + 2])); group.vertices.push(i); shared.set(key, group);
+    }
+    for (const group of shared.values()) {
+      group.sum.normalize();
+      for (const i of group.vertices) { normals[i] = group.sum.x; normals[i + 1] = group.sum.y; normals[i + 2] = group.sum.z; }
+    }
+    mesh.setVerticesData(VertexBuffer.NormalKind, normals);
   }
 
   function makePerson(resident: LifeResident, index: number): PersonRig {
@@ -505,12 +635,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     for (const mesh of root.getChildMeshes()) { mesh.metadata = { residentId: resident.id }; mesh.isPickable = true; }
     const ring = MeshBuilder.CreateTorus('controlled-resident-ring', { diameter: .64, thickness: .025, tessellation: 48 }, scene);
     ring.position.y = .025; ring.parent = root; ring.material = material('player-ring', '#f8e3ae'); ring.isPickable = false;
-    (ring.material as StandardMaterial).emissiveColor = c3('#dfbb74').scale(.32); ring.isVisible = resident.role === 'player';
+    (ring.material as PBRMaterial).emissiveColor = c3('#dfbb74').scale(.32); ring.isVisible = resident.role === 'player';
     torso.receiveShadows = true;
     const rig: PersonRig = { root, hips, head, arms, forearms, legs, shins, book, cup, brush, ring, phase: index * 2 };
     const fallbackMeshes = hips.getChildMeshes();
     const file = index === 1 ? 'casual-woman.glb' : index === 2 ? 'hoodie-man.glb' : 'casual-man.glb';
-    void SceneLoader.ImportMeshAsync('', '/life-assets/', file, scene).then(result => {
+    const characterLoad = SceneLoader.ImportMeshAsync('', '/life-assets/', file, scene).then(result => {
       if (disposed || root.isDisposed()) { result.meshes.forEach(mesh => mesh.dispose()); result.animationGroups.forEach(group => group.dispose()); return; }
       const model = new TransformNode(`skinned-${resident.id}`, scene); model.parent = hips; model.scaling.setAll(.96); model.rotation.y = Math.PI;
       for (const mesh of result.meshes) {
@@ -521,6 +651,8 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
         if (mat instanceof PBRMaterial) {
           mat.metallic = 0; mat.roughness = .88;
           const name = mat.name;
+          if (name.startsWith('Skin') || name.startsWith('Hair')) softenCharacterNormals(mesh);
+          mat.maxSimultaneousLights = 8; mat.environmentIntensity = .6;
           if (name === 'Skin' || name === 'Skin_Darker') mat.albedoColor = c3(resident.skin).toLinearSpace().scale(name === 'Skin_Darker' ? .84 : 1);
           else if (name.startsWith('Hair') || name === 'Eyebrows') mat.albedoColor = c3(resident.hair).toLinearSpace();
           else if ((index < 2 && name === 'White') || (index === 2 && name === 'Purple')) mat.albedoColor = c3(resident.color).toLinearSpace();
@@ -532,7 +664,8 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       rig.bones = new Map(result.skeletons[0]?.bones.flatMap(bone => { const node = bone.getTransformNode(); return node ? [[bone.name, node] as const] : []; }) ?? []);
       const idle = rig.clips.find(group => group.name === 'Idle_Neutral') ?? rig.clips.find(group => group.name === 'Idle');
       idle?.start(true); rig.clip = idle?.name;
-    }).catch(error => console.warn(`Character asset ${file} unavailable; using articulated resident.`, error));
+    }).catch(error => { failedAssets.add(file); console.warn(`Character asset ${file} unavailable; using articulated resident.`, error); });
+    pendingAssets.push(characterLoad);
     return rig;
   }
 
@@ -575,12 +708,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   function applyTheme(next: LifeTheme): void {
     theme = next; const palette = PALETTES[next];
     lanternDecor.setEnabled(next === 'lantern'); comicDecor.setEnabled(next === 'comic');
-    for (const item of themed) item.mat.diffuseColor = c3(palette[item.key]);
-    scene.clearColor = Color4.FromColor3(c3(palette.sky), 1);
-    sun.diffuse = c3(next === 'lantern' ? '#ffbc79' : next === 'comic' ? '#fff0d2' : '#ffe1b2');
-    sun.intensity = next === 'lantern' ? 1.25 : 1.55;
-    fill.diffuse = c3(next === 'lantern' ? '#bbbce0' : '#fff1dc');
-    fill.intensity = next === 'lantern' ? .55 : .68;
+    for (const item of themed) item.mat.albedoColor = c3(palette[item.key]).toLinearSpace();
+    atmosphere.setTheme(next);
+    sun.diffuse = c3(next === 'lantern' ? '#9eaee4' : next === 'comic' ? '#d8e7fa' : '#b5cbee');
+    sun.intensity = next === 'lantern' ? .65 : .85;
+    fill.diffuse = c3(next === 'lantern' ? '#8b97ce' : '#a9bde3');
+    fill.intensity = next === 'lantern' ? .14 : .18;
     scene.imageProcessingConfiguration.contrast = next === 'comic' ? 1.35 : 1.12;
   }
 
@@ -670,6 +803,26 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   window.addEventListener('resize', resize);
   engine.runRenderLoop(() => {
     if (disposed) return;
+    const now = performance.now();
+    if (document.visibilityState === 'visible' && now >= metricWarmupUntil) {
+      if (previousFrame > 0) {
+        const frameTime = now - previousFrame;
+        if (frameTime > 0) { frameTimes.push(frameTime); if (frameTimes.length > 600) frameTimes.shift(); }
+      }
+      previousFrame = now;
+      if (now - previousMetric > 1000 && frameTimes.length > 30) {
+        const sorted = [...frameTimes].sort((a, b) => a - b), elapsed = frameTimes.reduce((sum, value) => sum + value, 0);
+        const median = sorted[Math.floor(sorted.length * .5)]!, p95 = sorted[Math.floor(sorted.length * .95)]!;
+        const fps = +(frameTimes.length * 1000 / elapsed).toFixed(1);
+        canvas.dataset.scenePerformance = JSON.stringify({
+          frames: frameTimes.length + 1, windowMs: +elapsed.toFixed(1), medianMs: +median.toFixed(2), p95Ms: +p95.toFixed(2),
+          maxMs: +sorted[sorted.length - 1]!.toFixed(2), stallCount: frameTimes.filter(value => value > 50).length,
+          fps, averageFps: fps, width: engine.getRenderWidth(), height: engine.getRenderHeight(),
+          meshes: scene.meshes.length, activeMeshes: scene.getActiveMeshes().length,
+        });
+        previousMetric = now;
+      }
+    } else previousFrame = 0;
     const dt = Math.min(engine.getDeltaTime() / 1000, .06); clock += dt;
     if (current) for (const resident of current.residents) { const rig = people.get(resident.id); if (rig) animatePerson(resident, rig, dt); }
     if (cameraMode === 'follow' && focused) { const rig = people.get(focused); if (rig) camera.target = Vector3.Lerp(camera.target, rig.root.position.add(new Vector3(0, .8, 0)), 1 - Math.exp(-dt * 3)); }
@@ -681,6 +834,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   });
 
   return {
+    ready,
     update(state) {
       current = state;
       if (state.theme !== theme) applyTheme(state.theme);
@@ -694,6 +848,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       const residentIds = new Set(state.residents.map(r => r.id));
       for (const [id, person] of people) if (!residentIds.has(id)) { person.root.dispose(false, false); people.delete(id); }
       state.residents.forEach((resident, index) => { if (!people.has(resident.id)) people.set(resident.id, makePerson(resident, index)); });
+      void prepareFirstFrame();
       if (!focused || !residentIds.has(focused)) focused = state.residents.find(r => r.role === 'player')?.id ?? state.residents[0]?.id ?? '';
     },
     movementDirection(horizontal, vertical) {
@@ -722,7 +877,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       return { x: rect.left + point.x * rect.width / engine.getRenderWidth(), y: rect.top + point.y * rect.height / engine.getRenderHeight(), visible: point.z >= 0 && point.z <= 1 && point.x >= 0 && point.x <= engine.getRenderWidth() && point.y >= 0 && point.y <= engine.getRenderHeight() };
     },
     dispose() {
-      disposed = true; resizeObserver.disconnect(); window.removeEventListener('resize', resize);
+      disposed = true; clearTimeout(readyTimeout); settleReady(); document.removeEventListener('visibilitychange', resetMetrics); resizeObserver.disconnect(); window.removeEventListener('resize', resize);
       scene.onPointerObservable.remove(pointerObserver); engine.stopRenderLoop(); scene.dispose(); engine.dispose();
     },
   };

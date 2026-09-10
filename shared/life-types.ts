@@ -42,6 +42,7 @@ export interface LifeCommandEnvelope { worldId: string; requestId: string; comma
 export interface LifeResponse { state: LifeState; message: string }
 export interface LifeSceneHooks { onObject(id: string, screen: { x: number; y: number }): void; onResident(id: string, screen: { x: number; y: number }): void; onGround(point: LifePoint): void }
 export interface LifeScene {
+  readonly ready: Promise<{ degraded: boolean; failedAssets: string[] }>;
   update(state: LifeState): void; dispose(): void; focusResident(id: string): void;
   setCamera(mode: 'orbit' | 'follow'): void;
   movementDirection(horizontal: number, vertical: number): LifePoint;
