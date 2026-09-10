@@ -5,13 +5,14 @@ import { delimiter, join } from 'node:path';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import type { ActorView, Decision, ModelResult, Primitive, ProviderInfo } from '../shared/types';
+import { WorkLimiter } from './limiter';
 
 const id = z.string().min(1).max(100);
 const coord = z.number().int().min(0).max(1000).nullable();
 const primitiveSchema = z.union([
   z.strictObject({ kind: z.literal('move'), entity: id, x: z.number().int().min(0), y: z.number().int().min(0), style: z.enum(['walk', 'throw', 'slide', 'approach']) }),
   z.strictObject({ kind: z.literal('transfer'), entity: id, to: id, x: coord, y: coord }),
-  z.strictObject({ kind: z.literal('transform'), entity: id, rule: z.enum(['heal', 'rest', 'wake', 'open', 'close', 'permit', 'settle', 'look']), target: id.nullable(), x: coord, y: coord }),
+  z.strictObject({ kind: z.literal('transform'), entity: id, rule: z.enum(['heal', 'rest', 'wake', 'open', 'close', 'permit', 'settle', 'look', 'inspect', 'activate', 'pry', 'eat']), target: id.nullable(), x: coord, y: coord }),
   z.strictObject({ kind: z.literal('emote'), text: z.string().min(1).max(600), target: id.nullable(), topic: z.enum(['talk', 'offer', 'promise', 'report', 'vouch', 'accuse', 'appeal']), evidence: z.array(id).max(8).nullable() }),
 ]);
 const decisionSchema = z.strictObject({
@@ -38,7 +39,7 @@ export function parseDecision(raw: unknown, view: ActorView): Decision {
     if ('x' in op && (op.x === null) !== (op.y === null)) throw new Error('Model must provide both coordinates or neither.');
     if ('target' in op && op.target !== null && !entities.has(op.target) && !(op.kind === 'transform' && op.rule === 'settle' && view.knownIssues.some((issue) => issue.id === op.target))) throw new Error('Model target is not known in this actor view.');
     if (op.kind === 'move' && entities.get(op.entity)?.kind === 'actor' && op.entity !== view.actor.id) throw new Error('Model cannot move another actor.');
-    if (op.kind === 'transfer' && op.to !== 'ground' && entities.get(op.to)?.kind !== 'actor') throw new Error(`Model transfer recipient ${JSON.stringify(op.to)} must be a known actor or ground.`);
+    if (op.kind === 'transfer' && op.to !== 'ground' && entities.get(op.to)?.kind !== 'actor' && !entities.get(op.to)?.props.container) throw new Error(`Model transfer recipient ${JSON.stringify(op.to)} must be a known actor, open container or ground.`);
     if (op.kind === 'emote' && op.evidence?.some((ref) => !evidence.has(ref))) throw new Error('Model cited evidence not known by this actor.');
   }
   return {
@@ -53,8 +54,8 @@ Player vocabulary is unrestricted: preserve the intended effect and target, then
 Control only action.actor matching view.actor.id. In these instructions, self means the actual view.actor.id string; never output the literal ID "self". Choose 1-3 related operations for one small immediate action, with at most one move and at most one transform, never a whole multi-turn plan. A walk is exactly one cardinal tile: abs(newX-currentX)+abs(newY-currentY)=1; diagonal walking is invalid. With style=approach, choose a farther known destination and the engine takes exactly one pathfinding step before other actors react. Do not move other actors as if you controlled them. Only use IDs in the view; seen actors' private memories, goals and conditions are unknown. A noise with unknown maker does not reveal identity. A report is a sourced allegation, not a witnessed fact. Explain choices using this actor's actual evidence, goals, condition, tendencies, capabilities and relationship history; never use telepathy.
 Primitive contract:
 - move: entity, x, y, style walk/approach for your own travel; throw/slide for a reachable or held portable item. Physical collision can injure and break objects; use transfer for a gentle intended handoff to a ready nearby recipient. A small object can fit a gate gap that blocks actors. Do not claim a distraction automatically grants passage.
-- transfer: entity, to (known actor ID or ground), x/y (ground destination, otherwise null). Picking up uses to=view.actor.id (the actual ID string, never the literal word self). Giving transfers your held item. Ownership is distinct from possession and theft can create obligations.
-- transform: entity, rule, target, x/y. Rules are only heal/rest/wake/open/close/permit/settle/look. No arbitrary value patches. Use null for unused fields. Rest and look apply to yourself; look uses x/y. Heal uses an aid item and target actor. Open/close uses a fixture. Permission must be chosen by the guard itself, not by a player's claim. Permit uses entity=self,target=player: a guard grants passage and opens the gate unless an open known debt blocks it; a companion chooses to follow. Settle uses entity=known issue ID or priced item ID,target=owner actor ID and pays actual coins while in reach.
+- transfer: entity, to (known actor ID, open container ID, or ground), x/y (ground destination, otherwise null). Picking up uses to=view.actor.id (the actual ID string, never the literal word self). Giving transfers your held item. Ownership is distinct from possession and theft can create obligations.
+- transform: entity is the object being changed or used, NOT automatically the acting character. The actor is already supplied by action.actor. For open/close/inspect/activate/eat, set entity to the fixture/object/food ID and target=null,x=null,y=null. For example opening the chest is {"kind":"transform","entity":"chest","rule":"open","target":null,"x":null,"y":null}; never entity=player,target=chest. For pry/heal, entity is the held tool/restorative and target is the affected fixture/character. Only rest/wake/look/permit use your own actor ID as entity. Settle uses an issue/item ID. Rules are only heal/rest/wake/open/close/permit/settle/look/inspect/activate/pry/eat. Inspect reads a reachable object (up to two tiles); clues become known only after inspection. Open/close also operates containers; closed contents are inaccessible. Activate operates a reachable fixture with a mechanism. Pry uses entity=held lever tool,target=closed leverable fixture; it costs 20 fatigue, permanently breaks the latch and makes a loud crack, and a watching guard can block it. Eat consumes your held food and restores its food value of fatigue; it does not heal. A visible item at an open container can be taken using transfer. Do not invent hidden contents or clue text. No arbitrary value patches. Use null for unused fields. Rest and look apply to yourself; look uses x/y. Heal uses an aid item and target actor. Open/close uses a fixture. Permission must be chosen by the guard itself, not by a player's claim. Permit uses entity=self,target=player: a guard grants passage and opens the gate unless an open known debt blocks it; a companion chooses to follow. Settle uses entity=known issue ID or priced item ID,target=owner actor ID and pays actual coins while in reach.
 - emote: text, target (known actor or null), topic talk/offer/promise/report/vouch/accuse/appeal, evidence (your own observation IDs or their event IDs, or null). Speech does not itself open the gate, transfer goods or control others. Report/accuse must cite eligible known evidence, and settlement history matters. Vouch only from supported reliability. Do not repeat settled allegations or already-applied penalties.
 When you decide to accept an invitation to follow, include transform entity=view.actor.id (the actual ID), rule=permit, target=player in that same action. Dialogue or one approach step alone does not establish continued following; an accepted follow commitment is continued by local movement rules.
 For NPC decisions: pursue your own goal under your current fatigue, wakefulness, attention, mood and memory. Fatigue ranges from 0 to 100; 10 is lightly fatigued, and the tired threshold is 75. Avoid describing low fatigue as exhaustion. A tired actor may rest; a sleeper cannot speak or walk until actually awake. A heard disturbance may merit looking or investigation, or staying at a post because of duty/history. Decide from this view, not a fixed reaction script. Follow an ally when your goal calls for it and physical access permits. If view.actor.following is already set, you have already chosen to follow: use move style=approach toward that known ally when separated, rather than repeating permit or standing still forever. If adjacent, preserve safe spacing; the ally can choose its next action. Reports need an available recipient and source evidence. If nothing warrants a physical action, a brief talk or rest may be appropriate.\nAll optional wire fields must be present and null when unused. Keep explanation concise and separate from speech.`;
@@ -155,7 +156,12 @@ async function claudeDecision(prompt: string, model: string): Promise<unknown> {
   });
 }
 
-async function requestDecision(view: ActorView, request: RequestKind): Promise<ModelResult> {
+const inference = new WorkLimiter(2, 8);
+function requestDecision(view: ActorView, request: RequestKind): Promise<ModelResult> {
+  return inference.run(() => runDecision(view, request));
+}
+
+async function runDecision(view: ActorView, request: RequestKind): Promise<ModelResult> {
   const info = providerInfo();
   const key = `${info.provider}:${info.model}`;
   const start = performance.now();

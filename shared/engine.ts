@@ -1,11 +1,11 @@
 import type { Action, ActorView, DirectIntent, Entity, Point, Primitive, PublicState, Resolution, World, WorldEvent } from './types';
 import { createWorld } from './scenario';
-import { actorView, canSee, distance, line, perceive, position } from './perception';
+import { actorView, available, canSee, distance, line, perceive, position, projectEntity } from './perception';
 import { develop } from './development';
 export { createWorld, actorView };
 function fail(message:string):never {throw new Error(message);}
 const ground=(p:Point)=>({kind:'ground' as const,x:p.x,y:p.y});
-function entity(w:World,id:string):Entity{return w.entities[id]??fail(`Unknown entity: ${id}`);}
+function entity(w:World,id:string):Entity{return Object.hasOwn(w.entities,id)?w.entities[id]:fail(`Unknown entity: ${id}`);}
 function pos(w:World,id:string):Point{return position(w,id)??fail(`${entity(w,id).name} is no longer present.`);}
 function reachable(w:World,actor:string,id:string,range=1){if(distance(pos(w,actor),pos(w,id))>range)fail(`Move closer to ${entity(w,id).name}.`);}
 function solid(w:World,p:Point,ignore?:string,size=2):boolean{
@@ -24,8 +24,9 @@ function stepToward(w:World,id:string,target:Point,stop=0):Point|null{
 function emit(w:World,actor:string,kind:string,text:string,location:Point,extra:Partial<WorldEvent>={}):WorldEvent{
  const e:WorldEvent={id:`event-${w.events.length+1}`,tick:w.tick,kind,actor,text,location:{...location},noise:0,witnesses:[],...extra};w.events.push(e);perceive(w,e);develop(w,e);return e;
 }
-function known(w:World,id:string,target:string){if(id==='player')return;const view=actorView(w,id);if(!view.entities.some(e=>e.id===target)&&!view.knownIssues.some(i=>i.id===target))fail('That target is outside this character’s knowledge.');}
+function known(w:World,id:string,target:string){if(!available(w,target,id))fail('That object is inside a closed container or another character’s private inventory.');if(id==='player')return;const view=actorView(w,id);if(!view.entities.some(e=>e.id===target)&&!view.knownIssues.some(i=>i.id===target))fail('That target is outside this character’s knowledge.');}
 function guarding(w:World,id:string,gate:Entity):boolean{
+ if(gate.id!=='gate')return false;
  const keeper=w.actors.guard;if(id==='guard'||w.actors[id].permission||keeper.hp<=0||keeper.wakefulness==='asleep'||distance(pos(w,'guard'),pos(w,gate.id))>2)return false;
  const keeperPos=pos(w,'guard'), visitor=pos(w,id);
  if(keeper.attention){const focus=keeper.attention;if((focus.x-keeperPos.x)*(visitor.x-keeperPos.x)+(focus.y-keeperPos.y)*(visitor.y-keeperPos.y)<0)return false;}
@@ -81,6 +82,15 @@ function transfer(w:World,id:string,op:Extract<Primitive,{kind:'transfer'}>):voi
   if(e.props.solid&&Object.values(w.entities).some(v=>v.kind==='actor'&&position(w,v.id)?.x===p.x&&position(w,v.id)?.y===p.y))fail('The crate would block an occupied space.');
   e.location=ground(p);emit(w,id,'place',`${entity(w,id).name} placed ${e.name}.`,p,{subject:e.id});return;
  }
+ const container=Object.hasOwn(w.entities,op.to)?w.entities[op.to]:undefined;
+ if(container?.props.container){
+  known(w,id,container.id);reachable(w,id,container.id);
+  if(!container.props.open)fail('Open the container before putting something inside.');
+  if(e.location.kind!=='held'||e.location.actor!==id)fail('Hold the object before placing it inside.');
+  if(e.props.container||e.kind!=='item')fail('Only ordinary carried items fit inside containers.');
+  if(Object.values(w.entities).filter(v=>v.location.kind==='contained'&&v.location.container===container.id).length>=4)fail('The container is full.');
+  e.location={kind:'contained',container:container.id};emit(w,id,'place',`${entity(w,id).name} placed ${e.name} inside ${container.name}.`,pos(w,container.id),{subject:e.id,target:container.id});return;
+ }
  const recipient=w.actors[op.to];if(!recipient)fail('Choose a character or ground as recipient.');known(w,id,op.to);reachable(w,id,op.to);
  if(recipient.wakefulness==='asleep'&&op.to!==id)fail('The recipient must be awake to receive it.');
  if(Object.values(w.entities).filter(v=>v.location.kind==='held'&&v.location.actor===op.to).length>=4)fail('The recipient is carrying too much.');
@@ -101,6 +111,39 @@ function transform(w:World,id:string,op:Extract<Primitive,{kind:'transform'}>):v
   for(const issue of issues){reachable(w,id,issue.owner);if(op.target&&op.target!==issue.owner)fail('Pay the rightful owner.');if(a.coins<issue.amount)fail(`You need ${issue.amount} coins, or return the item / offer sufficient collateral.`);a.coins-=issue.amount;w.actors[issue.owner].coins+=issue.amount;settleIssue(w,id,issue.id,'paid');w.entities[issue.entity].props.owner=id;}return;
  }
  const e=entity(w,op.entity);known(w,id,e.id);
+ if(op.rule==='inspect'){
+  reachable(w,id,e.id,2);
+  emit(w,id,'inspect',`${entity(w,id).name} examined ${e.name}. ${e.description}`,pos(w,e.id),{subject:e.id});
+  if(e.props.clue&&!a.memories.some(o=>o.kind==='discovery'&&o.subject===e.id)){
+   const event:WorldEvent={id:`event-${w.events.length+1}`,tick:w.tick,kind:'discovery',actor:id,subject:e.id,text:e.props.clue,location:pos(w,e.id),noise:0,witnesses:[id]};
+   w.events.push(event);a.memories.push({id:`${event.id}:${id}`,eventId:event.id,tick:w.tick,kind:'discovery',text:event.text,location:{...event.location},actor:id,subject:e.id,lineage:[event.id]});
+  }
+  return;
+ }
+ if(op.rule==='eat'){
+  if(op.target&&op.target!==id)fail('Give food to another character so they can choose to eat it.');
+  if(!e.props.food||e.location.kind!=='held'||e.location.actor!==id)fail('Eating requires held food.');
+  const amount=Math.min(a.fatigue,e.props.food);a.fatigue-=amount;e.location={kind:'removed'};
+  emit(w,id,'eat',`${entity(w,id).name} ate ${e.name} and recovered ${amount} fatigue.`,pos(w,id),{subject:e.id,data:{amount}});return;
+ }
+ if(op.rule==='activate'){
+  reachable(w,id,e.id);if(!e.props.mechanism)fail('That object has no linked mechanism.');
+  const linked=entity(w,e.props.mechanism);if(!available(w,linked.id,id))fail('The linked mechanism is concealed inside a container or private inventory.');
+  if(linked.kind!=='fixture'||linked.props.open===undefined||linked.props.container)fail('The mechanism does not control an opening.');
+  if(guarding(w,id,linked))fail('Mara blocks the guarded mechanism.');
+  if(linked.props.open)fail('The mechanism is already open.');
+  linked.props.locked=false;linked.props.open=true;
+  emit(w,id,'open',`${entity(w,id).name} used ${e.name}; ${linked.name} opened.`,pos(w,linked.id),{subject:linked.id,target:e.id,noise:3});return;
+ }
+ if(op.rule==='pry'){
+  if(!e.props.lever||e.location.kind!=='held'||e.location.actor!==id)fail('Prying requires a held lever tool.');
+  const target=entity(w,op.target??'');known(w,id,target.id);reachable(w,id,target.id);
+  if(target.kind!=='fixture'||!target.props.leverable||target.props.open===undefined||target.props.open)fail('That fixture has no closed leverable latch.');
+  if(guarding(w,id,target))fail('Mara is watching and blocks the forced opening.');
+  if(a.fatigue>80)fail('Prying requires 20 effort. Rest or eat first.');
+  a.fatigue+=20;target.props.open=true;target.props.locked=false;target.props.broken=true;
+  emit(w,id,'impact',`${entity(w,id).name} forced ${target.name} open with ${e.name}. The latch broke with a loud crack.`,pos(w,target.id),{subject:target.id,target:target.id,noise:8,data:{broken:true,tool:e.id}});return;
+ }
  if(['rest','wake','look','permit'].includes(op.rule)&&e.id!==id)fail('That change is the other character’s own decision.');
  if(op.rule==='rest'){a.fatigue=Math.max(0,a.fatigue-12);a.mood='resting';emit(w,id,'rest',`${e.name} rested.`,pos(w,id));return;}
  if(op.rule==='wake'){a.wakefulness='awake';a.awakenedTick=w.phase&&!w.phase.finalized?w.tick:w.tick+1;emit(w,id,'wake',`${e.name} woke.`,pos(w,id));return;}
@@ -125,7 +168,8 @@ function transform(w:World,id:string,op:Extract<Primitive,{kind:'transform'}>):v
  if(op.rule==='open'||op.rule==='close'){
   if(e.kind!=='fixture'||e.props.open===undefined)fail('That fixture cannot open or close.');reachable(w,id,e.id);
   if(op.rule==='close'){
-   const p=pos(w,e.id);if(Object.values(w.entities).some(v=>v.id!==e.id&&v.props.solid&&position(w,v.id)?.x===p.x&&position(w,v.id)?.y===p.y))fail('Something braces or occupies the gate.');e.props.open=false;
+   if(e.props.broken)fail('The broken latch can no longer hold this fixture closed.');
+   const p=pos(w,e.id);if(!e.props.container&&Object.values(w.entities).some(v=>v.id!==e.id&&v.props.solid&&position(w,v.id)?.x===p.x&&position(w,v.id)?.y===p.y))fail('Something braces or occupies the gate.');e.props.open=false;
   }else{
    if(guarding(w,id,e))fail('Mara is watching this approach and blocks access. Seek permission or another opening.');
    if(e.props.locked){const key=Object.values(w.entities).find(v=>v.id===e.props.key&&v.location.kind==='held'&&v.location.actor===id);if(!key)fail('The locked gate needs its key or the keeper’s permission.');e.props.locked=false;}e.props.open=true;
@@ -194,24 +238,35 @@ export function directAction(w:World,intent:DirectIntent):Action{
  if(intent.kind==='wait'||intent.kind==='rest')return wrap([{kind:'transform',entity:id,rule:'rest'}],'Wait / rest');
  if(!('entity' in intent))return wrap([{kind:'transform',entity:id,rule:'rest'}],'Rest');
  const e=entity(w,intent.entity);
+ known(w,id,e.id);
+ if(intent.kind==='inspect')return wrap([{kind:'transform',entity:e.id,rule:'inspect'}],`Inspect ${e.name}`);
  if(intent.kind==='drop'){
   const origin=pos(w,id);const free=[origin,{x:origin.x+1,y:origin.y},{x:origin.x-1,y:origin.y},{x:origin.x,y:origin.y+1},{x:origin.x,y:origin.y-1}].find(p=>!solid(w,p,e.id));
   return wrap([{kind:'transfer',entity:e.id,to:'ground',...(e.props.solid&&free?free:{})}],`Place ${e.name}`);
  }
  const p=pos(w,e.id);
  if(distance(pos(w,id),p)>1)return wrap([{kind:'move',entity:id,x:p.x,y:p.y,style:'approach'}],`Approach ${e.name}`);
+ if(e.kind==='item'&&e.location.kind==='held'&&e.location.actor===id&&e.props.food)return wrap([{kind:'transform',entity:e.id,rule:'eat'}],`Eat ${e.name}`);
  if(e.kind==='item'&&e.location.kind==='held'&&e.location.actor===id&&e.props.heal){const patient=Object.values(w.actors).find(a=>a.id!==id&&a.hp<a.maxHp&&distance(pos(w,id),pos(w,a.id))<=1)?.id??id;return wrap([{kind:'transform',entity:e.id,rule:'heal',target:patient}],`Use ${e.name}`);}
  if(e.kind==='item')return wrap([{kind:'transfer',entity:e.id,to:id}],`Take ${e.name}`);
  if(e.id==='bench')return wrap([{kind:'transform',entity:id,rule:'rest'}],'Rest by the bench');
+ if(e.props.mechanism)return wrap([{kind:'transform',entity:e.id,rule:'activate'}],`Use ${e.name}`);
  if(e.props.open!==undefined)return wrap([{kind:'transform',entity:e.id,rule:e.props.open?'close':'open'}],`Interact with ${e.name}`);
  return wrap([{kind:'emote',topic:'appeal',target:e.kind==='actor'?e.id:undefined,text:e.id==='companion'?'Will you come with me to the refuge?':e.id==='guard'?'Will you let us through the gate?':'We are trying to reach the refuge together.'}],`Talk to ${e.name}`);
 }
 export function publicState(w:World,busy=false):PublicState{
  const p=w.actors.player;
+ const heardById=new Map(p.memories.filter(o=>o.kind==='noise_heard'||o.kind==='speech_heard').map(o=>[o.eventId,o]));
+ const visibleEvents:WorldEvent[]=w.events.flatMap(e=>{
+  if(e.witnesses.includes('player')){const {data:_,...visible}=e;return [{...visible,witnesses:[]}];}
+  const heard=heardById.get(e.id);
+  return heard?[{id:e.id,tick:e.tick,kind:heard.kind,actor:heard.actor??'unknown',text:heard.text,location:heard.location,noise:e.noise,witnesses:[]}]:[];
+ });
+ const recent=new Set(visibleEvents.filter(e=>!['move','rest','look','inspect','discovery'].includes(e.kind)).slice(-120).map(e=>e.id));
  return structuredClone({id:w.id,version:w.version,tick:w.tick,width:w.width,height:w.height,walls:w.walls,
- entities:Object.values(w.entities).filter(e=>e.location.kind!=='removed'&&(e.location.kind!=='held'||e.location.actor==='player')),
- actors:Object.values(w.actors).map(a=>({id:a.id,hp:a.hp,maxHp:a.maxHp,fatigue:a.fatigue,wakefulness:a.wakefulness,attention:a.attention,facing:a.facing,mood:a.mood})),
+ entities:Object.values(w.entities).filter(e=>available(w,e.id,'player')).map(e=>projectEntity(w,e)),
+ actors:Object.values(w.actors).map(a=>({id:a.id,...(a.appearance?{appearance:a.appearance}:{}),hp:a.hp,maxHp:a.maxHp,fatigue:a.fatigue,wakefulness:a.wakefulness,attention:a.attention,facing:a.facing,mood:a.mood})),
  player:{hp:p.hp,maxHp:p.maxHp,coins:p.coins,fatigue:p.fatigue,evidence:p.evidence,capabilities:p.capabilities,tendencies:p.tendencies},objective:w.objective,
- events:w.events.flatMap(e=>{if(e.witnesses.includes('player')){const {data:_,...visible}=e;return [{...visible,witnesses:[]}];}const heard=p.memories.find(o=>o.eventId===e.id&&(o.kind==='noise_heard'||o.kind==='speech_heard'));return heard?[{id:e.id,tick:e.tick,kind:heard.kind,actor:heard.actor??'unknown',text:heard.text,location:heard.location,noise:e.noise,witnesses:[]}]:[];}).slice(-24),
+ events:visibleEvents.slice(-24),journal:visibleEvents.filter(e=>e.kind==='discovery'||recent.has(e.id)),
  issues:w.issues.filter(i=>i.actor==='player').map(i=>({...i,reportedTo:[],applied:[]})),busy});
 }

@@ -4,11 +4,12 @@ import { resolve, extname, sep } from 'node:path';
 import { z } from 'zod';
 import { Coordinator, RequestError } from './coordinator';
 import { providerInfo, interpret, decideNpc } from './model';
+import { characterSchema } from '../shared/appearance';
 
 const point={x:z.number().int().min(0).max(100),y:z.number().int().min(0).max(100)};
 const direct=z.discriminatedUnion('kind',[
  z.object({kind:z.literal('move'),...point}).strict(),
- z.object({kind:z.enum(['interact','drop']),entity:z.string().min(1).max(80)}).strict(),
+ z.object({kind:z.enum(['interact','drop','inspect']),entity:z.string().min(1).max(80)}).strict(),
  z.object({kind:z.enum(['wait','rest'])}).strict(),
 ]);
 const action=z.object({requestId:z.string().min(1).max(100),worldId:z.string().min(1).max(100),version:z.number().int().min(0),input:z.string().trim().min(1).max(1200).optional(),direct:direct.optional()}).strict().refine(v=>!!v.input!==!!v.direct,{message:'Choose either an intention or a direct interaction.'});
@@ -16,7 +17,7 @@ const fresh=z.object({variant:z.enum(['baseline','tired','asleep']).optional()})
 const port=Number(process.env.PORT ?? 8787);
 const coordinator=new Coordinator(resolve(process.env.DATA_FILE ?? 'data/session.json'),{info:providerInfo,interpret,decide:decideNpc});
 const dist=resolve('dist');
-const mime:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.json':'application/json'};
+const mime:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.ogg':'audio/ogg','.md':'text/plain; charset=utf-8','.json':'application/json'};
 function json(res:ServerResponse,status:number,value:unknown) {
  res.writeHead(status,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(value));
 }
@@ -35,6 +36,7 @@ async function handle(req:IncomingMessage,res:ServerResponse) {
  if(path==='/api/state' && req.method==='GET')return json(res,200,{state:coordinator.state(),provider:coordinator.info()});
  if(path==='/api/action' && req.method==='POST')return json(res,200,await coordinator.act(action.parse(await body(req))));
  if(path==='/api/new' && req.method==='POST'){const v=fresh.parse(await body(req));return json(res,200,{state:coordinator.newWorld(v.variant),provider:coordinator.info()});}
+ if(path==='/api/character' && req.method==='POST')return json(res,200,{state:coordinator.updateCharacter(characterSchema.parse(await body(req))),provider:coordinator.info()});
  if(path==='/api/save' && req.method==='POST'){coordinator.save();return json(res,200,{ok:true});}
  if(path.startsWith('/api/'))return json(res,404,{error:'No such action.'});
  if(req.method!=='GET' && req.method!=='HEAD')return json(res,405,{error:'Method not supported.'});

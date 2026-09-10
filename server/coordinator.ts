@@ -1,8 +1,10 @@
 import { performance } from 'node:perf_hooks';
+import { createHash } from 'node:crypto';
 import { createWorld, resolveAction, beginTick, finishTick, actorView, publicState, directAction, fallbackAction } from '../shared/engine';
 import type { World, ModelResult, ActorView, ProviderInfo, DirectIntent, ActionResponse, PublicState, WorldEvent } from '../shared/types';
 import { SessionStore } from './store';
 import { initializeAwareness, scheduleReactions, followAction, acknowledgeCondition } from './reactions';
+import { characterSchema, type CharacterRequest } from '../shared/appearance';
 
 export interface Runtime {
   info(): ProviderInfo;
@@ -11,6 +13,11 @@ export interface Runtime {
 }
 export interface ActionRequest {requestId:string;worldId:string;version:number;input?:string;direct?:DirectIntent;}
 export class RequestError extends Error { constructor(message:string,readonly status=400){super(message);} }
+
+function requestFingerprint(request:ActionRequest):string {
+  const payload=request.direct ? {direct:Object.fromEntries(Object.entries(request.direct).sort(([a],[b])=>a.localeCompare(b)))} : {input:request.input};
+  return createHash('sha256').update(JSON.stringify({worldId:request.worldId,version:request.version,...payload})).digest('hex');
+}
 
 export class Coordinator {
   private world: World;
@@ -27,7 +34,22 @@ export class Coordinator {
   save():void {this.store.save(this.world);}
   newWorld(variant:'baseline'|'tired'|'asleep'='baseline'):PublicState {
     if(this.busy) throw new RequestError('The current action is still resolving.',409);
-    this.commit(initializeAwareness(createWorld(variant))); return this.state();
+    const next=initializeAwareness(createWorld(variant));
+    next.entities.player.name=this.world.entities.player.name;
+    if(this.world.actors.player.appearance) next.actors.player.appearance=structuredClone(this.world.actors.player.appearance);
+    this.commit(next); return this.state();
+  }
+  updateCharacter(request:CharacterRequest):PublicState {
+    const draft=characterSchema.parse(request);
+    if(draft.worldId!==this.world.id) throw new RequestError('That appearance belongs to a previous story.',409);
+    if(this.busy || this.world.phase && !this.world.phase.finalized) throw new RequestError('Finish the current action before changing your appearance.',409);
+    if(draft.version!==this.world.version) throw new RequestError('The world has changed. Review it before saving your appearance.',409);
+    const next=structuredClone(this.world);
+    next.entities.player.name=draft.name;
+    next.actors.player.appearance=draft.appearance;
+    next.version++;
+    this.commit(next);
+    return this.state();
   }
   async recover():Promise<void> {
     if(!this.world.phase || this.world.phase.finalized || this.busy) return;
@@ -38,7 +60,11 @@ export class Coordinator {
     if(req.worldId!==this.world.id) throw new RequestError('That action belongs to a previous story. Review the current world before acting.',409);
     if(this.busy) throw new RequestError('The world is still responding to your last action.',409);
     const prior=Object.hasOwn(this.world.receipts,req.requestId) ? this.world.receipts[req.requestId] : undefined;
+    const fingerprint=requestFingerprint(req);
     if(prior) {
+      // Old saved receipts have no payload hash. Preserve their retry semantics;
+      // every newly accepted request is bound to its original content.
+      if(prior.fingerprint && prior.fingerprint!==fingerprint) throw new RequestError('That request ID was already used for a different action.',409);
       await this.recover();
       return {state:this.state(),ok:prior.ok,message:prior.reason ?? 'That action is already recorded.',source:'saved',timing:{interpretationMs:0,reactionMs:0,totalMs:0},events:[]};
     }
@@ -60,7 +86,8 @@ export class Coordinator {
       const result=resolveAction(this.world,action);
       if(!result.ok) return {ok:false,state:publicState(this.world,false),message:result.reason ?? 'That action cannot happen here.',source,timing:{interpretationMs,reactionMs:0,totalMs:Math.round(performance.now()-start)},events:[]};
       const walking=action.ops.every(op=>op.kind==='move'&&op.entity==='player'&&(op.style==='walk'||op.style==='approach'));
-      let next=scheduleReactions(beginTick(result.world),walking);
+      const inspecting=action.ops.every(op=>op.kind==='transform'&&op.rule==='inspect');
+      let next=scheduleReactions(beginTick(result.world),walking||inspecting);
       if(walking){
         for(const actor of Object.values(next.actors)){
           if(actor.role!=='npc'||next.phase!.slots.includes(actor.id))continue;
@@ -68,7 +95,7 @@ export class Coordinator {
           if(follow){const step=resolveAction(next,follow);if(step.ok)next=step.world;}
         }
       }
-      next.receipts={...next.receipts,[req.requestId]:{ok:true,version:next.version}};
+      next.receipts={...next.receipts,[req.requestId]:{ok:true,version:next.version,fingerprint}};
       this.commit(next);
       const reactionStart=performance.now();
       const usedFallback=await this.react();

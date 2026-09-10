@@ -1,10 +1,29 @@
 import type { ActorView, Entity, Point, World, WorldEvent } from './types';
 export const distance=(a:Point,b:Point)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
-export function position(w:World,id:string):Point|null {
- const l=w.entities[id]?.location;
+export function position(w:World,id:string,seen=new Set<string>()):Point|null {
+ if(seen.has(id))return null;seen.add(id);
+ const l=Object.hasOwn(w.entities,id)?w.entities[id].location:undefined;
  if(l?.kind==='ground')return {x:l.x,y:l.y};
- if(l?.kind==='held'){const holder=w.entities[l.actor]?.location;return holder?.kind==='ground'?{x:holder.x,y:holder.y}:null;}
+ if(l?.kind==='held')return position(w,l.actor,seen);
+ if(l?.kind==='contained')return position(w,l.container,seen);
  return null;
+}
+/** Container openness and inventory privacy apply to the entire ownership chain. */
+export function available(w:World,id:string,viewer:string,seen=new Set<string>()):boolean {
+ if(seen.has(id)||!Object.hasOwn(w.entities,id))return false;seen.add(id);
+ const location=w.entities[id].location;
+ if(location.kind==='removed')return false;
+ if(location.kind==='ground')return true;
+ if(location.kind==='held')return location.actor===viewer&&available(w,location.actor,viewer,seen);
+ const parent=Object.hasOwn(w.entities,location.container)?w.entities[location.container]:undefined;
+ return Boolean(parent?.props.container&&parent.props.open&&available(w,parent.id,viewer,seen));
+}
+/** Projections contain only visible affordances, never undiscovered clue payloads. */
+export function projectEntity(w:World,e:Entity,viewer='player'):Entity {
+ const copy=structuredClone(e);delete copy.props.clue;
+ if(copy.location.kind==='contained'){const p=position(w,e.id);if(p)copy.location={kind:'ground',...p};}
+ if(copy.props.mechanism&&!available(w,copy.props.mechanism,viewer))delete copy.props.mechanism;
+ return copy;
 }
 export function line(a:Point,b:Point):Point[]{
  const out:Point[]=[];let x=a.x,y=a.y; const dx=Math.abs(b.x-a.x),dy=Math.abs(b.y-a.y),sx=a.x<b.x?1:-1,sy=a.y<b.y?1:-1;let err=dx-dy;
@@ -34,12 +53,12 @@ export function perceive(w:World,event:WorldEvent):void{
 }
 export function actorView(w:World,id:string):ActorView{
  const a=w.actors[id];if(!a)throw new Error('Unknown actor');
- const entities=Object.values(w.entities).filter(e=>e.location.kind!=='removed'&&(e.id===id||e.location.kind==='held'&&e.location.actor===id||Boolean(position(w,e.id)&&canSee(w,id,position(w,e.id)!)))).map(e=>{
-  const copy=structuredClone(e);if(copy.location.kind==='held'&&copy.location.actor!==id)return null;return copy;
+ const entities=Object.values(w.entities).filter(e=>available(w,e.id,id)&&(e.id===id||e.location.kind==='held'&&e.location.actor===id||Boolean(position(w,e.id)&&canSee(w,id,position(w,e.id)!)))).map(e=>{
+  const copy=projectEntity(w,e,id);if(copy.location.kind==='held'&&copy.location.actor!==id)return null;return copy;
  }).filter((e):e is Entity=>e!==null);
  for(const observed of a.memories.slice().reverse()){
   if(observed.kind==='speech_heard'&&observed.actor&&w.entities[observed.actor]&&!entities.some(e=>e.id===observed.actor)){const remembered=structuredClone(w.entities[observed.actor]);remembered.location={kind:'ground',...observed.location};remembered.description+=' Last heard at this location; recheck movement before contact.';entities.push(remembered);}
  }
  const knownIssues=w.issues.filter(i=>i.actor===id||a.memories.some(o=>o.lineage.includes(i.eventId)&&o.kind!=='noise_heard'));
- return structuredClone({actor:a,self:w.entities[id],entities,observations:a.memories.slice(-24),width:w.width,height:w.height,walls:w.walls,tick:w.tick,version:w.version,knownIssues:knownIssues.map(i=>({...i,status:a.memories.some(o=>(o.kind==='settle'&&o.subject===i.id)||o.lineage.some(ref=>w.events.some(e=>e.id===ref&&e.kind==='settle'&&e.subject===i.id)))?'settled' as const:'open' as const,reportedTo:i.reportedTo.filter(v=>v===id),applied:i.applied.filter(v=>v.startsWith(`${id}:`))}))});
+ return structuredClone({actor:a,self:projectEntity(w,w.entities[id],id),entities,observations:a.memories.slice(-24),width:w.width,height:w.height,walls:w.walls,tick:w.tick,version:w.version,knownIssues:knownIssues.map(i=>({...i,status:a.memories.some(o=>(o.kind==='settle'&&o.subject===i.id)||o.lineage.some(ref=>w.events.some(e=>e.id===ref&&e.kind==='settle'&&e.subject===i.id)))?'settled' as const:'open' as const,reportedTo:i.reportedTo.filter(v=>v===id),applied:i.applied.filter(v=>v.startsWith(`${id}:`))}))});
 }

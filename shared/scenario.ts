@@ -11,9 +11,17 @@ export function createWorld(variant: 'baseline' | 'tired' | 'asleep' = 'baseline
  add('crate','Wooden crate','item',6,6,'📦','A solid portable crate. Placed in the gate, it braces the opening.',{portable:true,solid:true,size:2,noise:5});
  add('medicine','Bandages','item',5,5,'🩹','Restores 3 HP. Costs 4 coins; belongs to Mara until paid for.',{portable:true,size:1,heal:3,price:4,owner:'guard',noise:1});
  add('tonic','Restorative tonic','item',5,6,'🧪','Restores 4 HP. Costs 5 coins; belongs to Mara until paid for.',{portable:true,size:1,heal:4,price:5,owner:'guard',fragile:true,noise:6});
- add('gate','Iron gate','fixture',11,4,'🚪','Locked gate with a small gap. Mara can permit passage. A key unlocks it when she is not blocking access.',{solid:true,size:3,gap:1,locked:true,open:false,key:'key'});
+ add('gate','Iron gate','fixture',11,4,'🚪','Locked gate with a small gap. Mara can permit passage. A key unlocks it when she is not blocking access.',{solid:true,size:3,gap:1,locked:true,open:false,key:'key',leverable:true});
  add('exit','Refuge','fixture',12,4,'✨','Reach this side of the gate with Ivo.',{});
  add('bench','Stone bench','fixture',8,6,'🪑','A quiet place to rest. Resting reduces fatigue.',{});
+ add('chest','Traveler’s chest','fixture',2,1,'🧰','An unlocked chest. Open it to see what is inside.',{container:true,open:false});
+ add('letter','Folded note','item',2,1,'📜','A folded note. Inspect it to read the writing.',{portable:true,size:1,clue:'The inspection shutter has a release beside it. The old gate can be levered open, but the damaged latch will not close again and the noise will wake a sleeper.'});
+ entities.letter.location={kind:'contained',container:'chest'};
+ add('ration','Travel ration','item',2,1,'🍞','A wrapped ration. Eating it restores up to 25 fatigue; it is consumed.',{portable:true,size:1,food:25});
+ entities.ration.location={kind:'contained',container:'chest'};
+ add('crowbar','Iron crowbar','item',3,2,'🛠️','A portable lever. Prying a weakened latch costs 20 fatigue and makes a loud, damaging crack.',{portable:true,size:1,lever:true,noise:6});
+ add('shutter','Inspection shutter','fixture',9,1,'🪟','A locked inspection shutter connected to the nearby release.',{open:false,locked:true,leverable:true});
+ add('release','Shutter release','fixture',8,1,'⚙️','A mechanical handle linked to the inspection shutter.',{mechanism:'shutter'});
  const actors={player:actor('player','Reach the refuge with Ivo.'),guard:actor('guard','Watch the gate. Protect supplies. Consider earned trust, reports, debt, distraction and your fatigue; decide whether to help.'),companion:actor('companion','Reach the refuge with the traveler. Seek treatment if hurt; decide whether to follow, help or report observed theft.')};
  actors.player.relationships.companion={trust:1,fear:0}; actors.companion.relationships.player={trust:1,fear:0};
  actors.player.facing='east'; actors.companion.facing='east'; actors.companion.hp=5;
