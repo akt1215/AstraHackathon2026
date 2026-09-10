@@ -53,7 +53,7 @@ export class LifeSimulation {
     const interrupted = this.world.residents.find(r => r.activity?.label === 'Considering a reply');
     if (interrupted) {
       const player = this.resident('player');
-      if (player.activity?.targetId === interrupted.id && player.activity.kind === 'chat') this.clear(player);
+      if (player.activity?.targetId === interrupted.id && player.activity.kind === 'chat') this.clear(player, false);
       this.clear(interrupted);
     }
   }
@@ -303,12 +303,12 @@ export class LifeSimulation {
     const player = this.resident('player'), target = this.resident(request.targetId);
     this.pendingTalk = null;
     if (player.activity?.id !== request.activityId || target.activity?.id !== request.targetActivityId || distance(player, target) > 3 || target.activity?.kind === 'sleep') {
-      if (player.activity?.id === request.activityId) this.clear(player);
+      if (player.activity?.id === request.activityId) this.clear(player, false);
       return false;
     }
     const reluctant = (target.relationships.player ?? 0) < -20;
     const action = reluctant && (decision.action === 'share' || decision.action === 'accept_chat') ? 'decline' : decision.action;
-    this.clear(player); this.clear(target);
+    this.clear(player, false); this.clear(target);
     if (action === 'accept_chat' || action === 'share') {
       const kind = action === 'share' ? 'share' : 'chat';
       player.activity = this.make(kind, target.id, null, false); target.activity = this.make(kind, player.id, null, true);
@@ -329,7 +329,7 @@ export class LifeSimulation {
     if (this.pendingTalk?.id !== request.id || request.worldId !== this.world.id) return;
     this.pendingTalk = null;
     const player = this.resident('player'), target = this.resident(request.targetId);
-    if (player.activity?.id === request.activityId) this.clear(player);
+    if (player.activity?.id === request.activityId) this.clear(player, false);
     if (target.activity?.label === 'Considering a reply') this.clear(target);
     this.event(target.id, message, 'provider-unavailable', player.id);
   }

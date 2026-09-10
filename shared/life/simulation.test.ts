@@ -136,4 +136,21 @@ describe('continuous life simulation', () => {
     expect(sim.state().residents.find(r => r.id === 'june')!.activity?.targetId).toBe('player');
     expect(sim.state().residents.find(r => r.id === 'leo')!.activity?.targetId).not.toBe('june');
   });
+  it.each(['accepted', 'declined', 'failed', 'restart', 'stale-target'] as const)('preserves and executes queued activities after a %s reply', outcome => {
+    const seed = new LifeSimulation().snapshot();
+    Object.assign(seed.state.residents[0], { x: 5, z: 5 });
+    Object.assign(seed.state.residents[1], { x: 6, z: 5 });
+    let sim = new LifeSimulation(seed);
+    const request = sim.beginTalk('june', 'Hello June.');
+    command(sim, { kind: 'use', objectId: 'bed', action: 'sleep', queue: true });
+    expect(player(sim).queue.map(a => a.kind)).toEqual(['sleep']);
+    if (outcome === 'restart') sim = new LifeSimulation(sim.snapshot());
+    else if (outcome === 'failed') sim.failReaction(request, 'The provider is unavailable.');
+    else if (outcome === 'stale-target') sim.applyReaction({ ...request, targetActivityId: 'a-superseded-activity' }, { action: 'accept_chat', speech: 'Hello Alex.' });
+    else sim.applyReaction(request, { action: outcome === 'accepted' ? 'accept_chat' : 'decline', speech: 'Hello Alex.' });
+    expect(player(sim).queue.map(a => a.kind)).toEqual(['sleep']);
+    advance(sim, 10);
+    expect(player(sim).activity?.kind).toBe('sleep');
+    expect(sim.state().objects.find(o => o.id === 'bed')!.occupiedBy).toBe('player');
+  });
 });
