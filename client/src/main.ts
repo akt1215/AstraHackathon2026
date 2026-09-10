@@ -139,7 +139,7 @@ function drawRoom(): void {
   }
   const guideTarget = guidance(s).target;
   let entities = '';
-  for (const entity of s.entities) {
+  for (const entity of [...s.entities].sort((a, b) => Number(a.kind === 'actor') - Number(b.kind === 'actor'))) {
     if (entity.location.kind !== 'ground') continue;
     const { x, y } = entity.location;
     const actor = s.actors.find(a => a.id === entity.id);
