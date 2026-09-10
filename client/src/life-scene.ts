@@ -32,7 +32,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   scene.clearColor = Color4.FromHexString('#253545ff');
   scene.ambientColor = new Color3(.06, .07, .1);
   scene.imageProcessingConfiguration.toneMappingEnabled = true;
-  scene.imageProcessingConfiguration.exposure = 1.5;
+  scene.imageProcessingConfiguration.exposure = 1.56;
   scene.imageProcessingConfiguration.contrast = 1.12;
   // Framing shared by construction and the orbit-camera reset so both stay in step.
   const ORBIT_BETA = .92;
@@ -51,19 +51,28 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   camera.maxZ = 120;
   camera.inputs.attached.keyboard?.detachControl();
   const fill = new HemisphericLight('sky-fill', new Vector3(.3, 1, -.2), scene);
-  fill.intensity = .18;
+  // Cool skylight above, warm bounce off the floorboards below, so unlit faces still read as lit.
+  fill.intensity = .13;
+  fill.diffuse = c3('#8fb2dd');
+  fill.groundColor = c3('#6b4b33');
   fill.groundColor = c3('#66504b');
   fill.diffuse = c3('#a9bde3');
-  const sun = new DirectionalLight('late-afternoon', new Vector3(-.45, -1.2, -.9), scene);
-  sun.position = new Vector3(14, 18, 15);
-  sun.intensity = .85;
-  sun.diffuse = c3('#c0d1ee');
+  // A low raking key does the work a steep overhead lamp cannot: long shadows, grazing angles
+  // across the floorboards, and a warm/cool split against the blue-hour skylight.
+  const sun = new DirectionalLight('late-afternoon', new Vector3(-.66, -.47, -.83), scene);
+  sun.position = new Vector3(19, 11, 19);
+  sun.intensity = 2.7;
+  sun.diffuse = c3('#ffc186');
+  sun.specular = c3('#ffd9ab');
   const shadows = new ShadowGenerator(2048, sun);
-  shadows.usePercentageCloserFiltering = true;
+  // Contact hardening gives a tight shadow at the point of contact that widens with distance,
+  // which is most of what separates a rendered contact from a stamped-on dark blob.
+  shadows.useContactHardeningShadow = true;
+  shadows.contactHardeningLightSizeUVRatio = .07;
   shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
-  shadows.bias = .001;
-  shadows.normalBias = .025;
-  shadows.setDarkness(.12);
+  shadows.bias = .0016;
+  shadows.normalBias = .03;
+  shadows.setDarkness(.04);
   sun.shadowMinZ = 1;
   sun.shadowMaxZ = 45;
   sun.autoCalcShadowZBounds = true;
@@ -148,7 +157,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   const blue = material('dusty-blue', '#6d8b9b');
   const glass = material('tinted-glass', '#b2cdce', .55);
   const glow = material('warm-lamp', '#ffdf9f');
-  glow.emissiveColor = c3('#d79c45').scale(.8);
+  glow.emissiveColor = c3('#ffb45e').scale(1.9);
 
   function box(name: string, dims: [number, number, number], pos: [number, number, number], mat: PBRMaterial, parent?: TransformNode, cast = true, bevel = 0): Mesh {
     const mesh = MeshBuilder.CreateBox(name, { width: dims[0], height: dims[1], depth: dims[2] }, scene);
@@ -202,7 +211,9 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
 
   // Continuous oak flooring keeps geometry inexpensive while retaining individual grain and joints.
   const floorMat = material('oak-floorboards', '#ffffff');
-  scan(floorMat, 'wood_floor', 6); floorMat.roughness = 1; floorMat.metallicF0Factor = .4;
+  // A sealed board finish: gloss enough to carry a specular streak from the key and the lamps.
+  scan(floorMat, 'wood_floor', 6); floorMat.roughness = .74; floorMat.metallicF0Factor = .62;
+  floorMat.environmentIntensity = .9;
   box('floating-foundation', [12.3, .3, 10.3], [6, -.18, 5], dark, undefined, false);
   const floor = MeshBuilder.CreateGround('walkable-oak', { width: 12, height: 10 }, scene);
   floor.position.set(6, 0, 5); floor.material = floorMat; floor.receiveShadows = true; floor.metadata = { ground: true };
@@ -733,11 +744,13 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     lanternDecor.setEnabled(next === 'lantern'); comicDecor.setEnabled(next === 'comic');
     for (const item of themed) item.mat.albedoColor = c3(palette[item.key]).toLinearSpace();
     atmosphere.setTheme(next);
-    sun.diffuse = c3(next === 'lantern' ? '#9eaee4' : next === 'comic' ? '#d8e7fa' : '#b5cbee');
-    sun.intensity = next === 'lantern' ? .65 : .85;
-    fill.diffuse = c3(next === 'lantern' ? '#8b97ce' : '#a9bde3');
-    fill.intensity = next === 'lantern' ? .14 : .18;
-    scene.imageProcessingConfiguration.contrast = next === 'comic' ? 1.35 : 1.12;
+    // Every preset keeps the raking warm key; only its tint and strength shift.
+    sun.diffuse = c3(next === 'lantern' ? '#ffab6a' : next === 'comic' ? '#ffd7a0' : '#ffc186');
+    sun.intensity = next === 'lantern' ? 2.1 : next === 'comic' ? 3 : 2.7;
+    fill.diffuse = c3(next === 'lantern' ? '#8b97ce' : '#8fb2dd');
+    fill.groundColor = c3(next === 'lantern' ? '#5d3f34' : '#6b4b33');
+    fill.intensity = next === 'lantern' ? .11 : .13;
+    scene.imageProcessingConfiguration.contrast = next === 'comic' ? 1.42 : 1.24;
   }
 
   function animatePerson(resident: LifeResident, rig: PersonRig, dt: number): void {
@@ -818,7 +831,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     camera.fov = aspect < 1 ? 1.05 : .8;
     const horizontalHalfAngle = Math.atan(Math.tan(camera.fov / 2) * aspect);
     // Fit the home's bounding sphere to the narrower horizontal field on phones.
-    orbitRadius = Math.max(15.4, 8.3 / Math.sin(horizontalHalfAngle) * 1.12);
+    orbitRadius = Math.max(15.4, 8.3 / Math.sin(horizontalHalfAngle) * 1.04);
     camera.upperRadiusLimit = Math.max(26, orbitRadius * 1.5);
     if (cameraMode === 'orbit') camera.radius = orbitRadius;
   };

@@ -1,6 +1,6 @@
 import {
-  ArcRotateCamera, Color3, Color4, DefaultRenderingPipeline, HDRCubeTexture,
-  Mesh, MeshBuilder, PBRMaterial, PointLight, Scene, SSAO2RenderingPipeline,
+  ArcRotateCamera, Color3, Color4, ColorCurves, DefaultRenderingPipeline, DepthOfFieldEffectBlurLevel,
+  HDRCubeTexture, Mesh, MeshBuilder, PBRMaterial, PointLight, Scene, SSAO2RenderingPipeline,
   Texture, TransformNode, Vector3,
 } from '@babylonjs/core';
 import type { LifeTheme } from '../../shared/life-types';
@@ -31,18 +31,39 @@ export function applyScannedMaterial(material: PBRMaterial, id: string, scene: S
 
 export function createCinematicAtmosphere(scene: Scene, camera: ArcRotateCamera, onAssetError: (asset: string) => void): { setTheme(theme: LifeTheme): void } {
   scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = .023;
+  scene.fogDensity = .027;
   scene.fogColor = color('#2c4058');
   const environment = new HDRCubeTexture('/life-assets/materials/environment.hdr', scene, 128, false, true, false, true, null, () => onAssetError('/life-assets/materials/environment.hdr'));
-  scene.environmentTexture = environment; scene.environmentIntensity = .45;
+  scene.environmentTexture = environment; scene.environmentIntensity = .72;
   const pipeline = new DefaultRenderingPipeline('cinematic-finishing', true, scene, [camera]);
   pipeline.fxaaEnabled = true;
   pipeline.samples = 2;
-  pipeline.bloomEnabled = true; pipeline.bloomThreshold = 1.15; pipeline.bloomWeight = .11; pipeline.bloomKernel = 48; pipeline.bloomScale = .35;
-  pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = .16; pipeline.sharpen.colorAmount = 1;
+  pipeline.bloomEnabled = true; pipeline.bloomThreshold = .86; pipeline.bloomWeight = .26; pipeline.bloomKernel = 64; pipeline.bloomScale = .5;
+  pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = .22; pipeline.sharpen.colorAmount = 1;
+  // Shallow focus on the room, falling off into the city so the background reads as distance
+  // rather than as more scenery competing with the home.
+  pipeline.depthOfFieldEnabled = true;
+  pipeline.depthOfFieldBlurLevel = DepthOfFieldEffectBlurLevel.Low;
+  pipeline.depthOfField.focalLength = 42;
+  pipeline.depthOfField.fStop = 3.6;
+  pipeline.depthOfField.focusDistance = 16500;
+  // Filmic finish: a slight cool lift in the shadows against the warm key, held-back saturation,
+  // a vignette to seat the room in frame, and grain so flat surfaces are never mathematically clean.
+  const curves = new ColorCurves();
+  curves.globalSaturation = 92;
+  curves.shadowsHue = 214; curves.shadowsDensity = 34; curves.shadowsSaturation = 22; curves.shadowsExposure = -3;
+  curves.midtonesHue = 34; curves.midtonesDensity = 12; curves.midtonesSaturation = 6;
+  curves.highlightsHue = 32; curves.highlightsDensity = 34; curves.highlightsSaturation = 20; curves.highlightsExposure = 6;
+  scene.imageProcessingConfiguration.colorCurves = curves;
+  scene.imageProcessingConfiguration.colorCurvesEnabled = true;
+  scene.imageProcessingConfiguration.vignetteEnabled = true;
+  scene.imageProcessingConfiguration.vignetteWeight = 1.5;
+  scene.imageProcessingConfiguration.vignetteStretch = .35;
+  scene.imageProcessingConfiguration.vignetteColor = new Color4(.03, .05, .09, 0);
+  pipeline.grainEnabled = true; pipeline.grain.intensity = 6; pipeline.grain.animated = true;
   scene.imageProcessingConfiguration.toneMappingType = 1;
-  const ao = new SSAO2RenderingPipeline('furniture-contact-shading', scene, { ssaoRatio: .5, blurRatio: .5 }, [camera]);
-  ao.radius = .75; ao.totalStrength = .8; ao.samples = 8; ao.expensiveBlur = false;
+  const ao = new SSAO2RenderingPipeline('furniture-contact-shading', scene, { ssaoRatio: .75, blurRatio: .5 }, [camera]);
+  ao.radius = .55; ao.totalStrength = 1.35; ao.samples = 16; ao.expensiveBlur = true;
   ao.maxZ = 55; ao.minZAspect = .1;
 
   const root = new TransformNode('blue-hour-city', scene);
@@ -108,20 +129,20 @@ export function createCinematicAtmosphere(scene: Scene, camera: ArcRotateCamera,
   const practicals: PointLight[] = [];
   function practical(name: string, x: number, y: number, z: number, intensity: number, radius: number): void {
     const light = new PointLight(name, new Vector3(x, y, z), scene);
-    light.diffuse = color('#ffc480').toLinearSpace(); light.specular = light.diffuse.scale(.15); light.intensity = intensity; light.range = radius;
+    light.diffuse = color('#ffc480').toLinearSpace(); light.specular = light.diffuse.scale(.4); light.intensity = intensity; light.range = radius;
     light.radius = .25; practicals.push(light);
   }
-  practical('living-room-lamp-light', 4.2, 1.72, 8.85, 12, 5);
-  practical('bedside-lamp-light', 11.55, 1.7, 3.55, 12, 5);
-  practical('kitchen-warm-light', 3.7, 2.6, 1.1, 9, 4.5);
-  practical('loft-central-bounce', 6, 3.7, 5, 5, 8);
-  practical('window-sconce-left', 2.7, 2.8, 9.85, 5, 4);
-  practical('window-sconce-right', 9.8, 2.8, 9.85, 5, 4);
+  practical('living-room-lamp-light', 4.2, 1.72, 8.85, 15, 5.2);
+  practical('bedside-lamp-light', 11.55, 1.7, 3.55, 15, 5.2);
+  practical('kitchen-warm-light', 3.7, 2.6, 1.1, 11, 4.6);
+  practical('loft-central-bounce', 6, 3.7, 5, 3.4, 8);
+  practical('window-sconce-left', 2.7, 2.8, 9.85, 7, 4.2);
+  practical('window-sconce-right', 9.8, 2.8, 9.85, 7, 4.2);
   return {
     setTheme(theme) {
       scene.clearColor = Color4.FromHexString(theme === 'comic' ? '#364c64ff' : theme === 'lantern' ? '#282d45ff' : '#253545ff');
       scene.fogColor = color(theme === 'lantern' ? '#33374e' : '#2c4058');
-      for (const light of practicals) { light.diffuse = color(theme === 'lantern' ? '#ffad61' : theme === 'comic' ? '#ffe2ae' : '#ffc480').toLinearSpace(); light.specular = light.diffuse.scale(.15); }
+      for (const light of practicals) { light.diffuse = color(theme === 'lantern' ? '#ffad61' : theme === 'comic' ? '#ffe2ae' : '#ffc480').toLinearSpace(); light.specular = light.diffuse.scale(.4); }
     },
   };
 }
