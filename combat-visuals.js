@@ -1,8 +1,7 @@
 // A short wind-up, fast directional cut, then recovery. Rendering only; no damage system.
 export const SWING_DURATION = 420;
 export const SWING_COOLDOWN = 500;
-export const ACTIONS={Slash:{duration:420,cooldown:500,sound:'Slash'},Heavy:{duration:720,cooldown:1000,sound:'Heavy'},Spin:{duration:650,cooldown:1300,sound:'Spin'},Bash:{duration:430,cooldown:800,sound:'Guard'},Dodge:{duration:360,cooldown:750,sound:'Dodge'}};
-Object.assign(ACTIONS,{Cleave:{duration:850,cooldown:1100,sound:'Cleave'},Cyclone:{duration:1000,cooldown:1400,sound:'Cyclone'},Breaker:{duration:780,cooldown:1100,sound:'Breaker'}});
+export {ACTIONS} from './content/game-config.js';
 export function drawSwing(c, progress, direction, legendary = false, kind='Slash') {
   const facing = {right:0, left:0, down:Math.PI/2, up:-Math.PI/2}[direction];
   const cut = Math.max(0, Math.min(1, (progress - (kind==='Heavy'?.45:.22)) / (kind==='Heavy'?.3:.48)));

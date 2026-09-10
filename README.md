@@ -43,3 +43,14 @@ Combos (K opens the in-game guide):
 - Forge Breaker: Bash → Heavy → Slash (R, Q, Space)
 
 Let each action finish and start the next within 1.6 seconds of its end. Only successfully started skills count; cooldown-blocked inputs are ignored. A correct final skill becomes a special animated finisher. The HUD shows sequence progress. Touch controls use the same recipes.
+
+## Event-driven engine and awakening offers
+
+See [engine design and API timing](docs/ENGINE.md). Authored content is extracted into `content/game-config.js`; the runtime records discoveries and learned combos, saves a factual journal, tracks quests, and queues milestone generation.
+
+- U / Awakenings: inspect pending offers, accept, decline, or decide later.
+- F / Talk: ask Rowan near the inn for a quest.
+- T: quests. J: recorded journal.
+- 5: use the accepted awakening's generated visual skill.
+
+AI requires server-only `OPENAI_API_KEY` and `OPENAI_MODEL` in `.env` (see `.env.example`) and a dev-server restart. Without configuration, progress is saved but generation remains disconnected. Once configured, queued work runs automatically. No API key or generated executable code is sent to the browser. This is a local engine foundation, not a production multiplayer backend.

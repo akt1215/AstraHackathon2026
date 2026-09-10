@@ -1,8 +1,5 @@
-export const houses = [
- {id:'inn',name:'The Ember Rest',x:116,y:165,w:130},
- {id:'smith',name:'Cinderwatch Smithy',x:469,y:152,w:127},
- {id:'home',name:'The Watchkeeper’s House',x:112,y:451,w:115},
-];
+import {HOUSES} from './content/game-config.js';
+export const houses=HOUSES;
 export const magmaBank = [[610,0],[800,0],[800,600],[615,600],[586,548],[575,464],[593,414],[568,370],[597,332],[634,287],[631,221],[658,176],[632,115]];
 export const obstacles=[];
 export function addObstacle(x,y,w,h){obstacles.push({x,y,w,h})}

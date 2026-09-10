@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Readable} from 'node:stream';
+import {generationApi} from './generation-api.js';
+async function request(api,body,url='/api/generation',method='POST'){
+ const req=Readable.from(body?[JSON.stringify(body)]:[]);Object.assign(req,{url,method,headers:{host:'localhost:5173',origin:'http://localhost:5173'}});
+ let data,status;const res={set statusCode(n){status=n},setHeader(){},end(v){data=JSON.parse(v)}};await api(req,res,()=>{});return{status,data};
+}
+const input={id:'one',kind:'journal',events:[{id:'e1',type:'room_entered',target:'inn',label:'Visited inn'}],profile:{},pastQuests:[]};
+test('no key means no upstream call',async()=>{let count=0;const api=generationApi({},()=>count++);assert.equal((await request(api,input)).status,503);assert.equal(count,0)});
+test('valid responses are cached and ID reuse with different evidence is rejected',async()=>{let count=0;const api=generationApi({OPENAI_API_KEY:'test-only',OPENAI_MODEL:'test-model'},async()=>{count++;return{ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({title:'Visit',summary:'Entered the inn.',sourceEventIds:['e1']})}]}]})}});assert.equal((await request(api,input)).status,200);assert.equal((await request(api,input)).status,200);assert.equal(count,1);assert.equal((await request(api,{...input,events:[{...input.events[0],label:'Different'}]})).status,409)});
+test('refusals and incomplete outputs never become content',async()=>{for(const result of [{status:'incomplete'},{status:'completed',output:[{content:[{type:'refusal'}]}]}]){const api=generationApi({OPENAI_API_KEY:'test-only',OPENAI_MODEL:'test-model'},async()=>({ok:true,json:async()=>result}));const r=await request(api,input);assert.ok(r.status>=400);assert.equal(r.data.content,undefined)}});
+test('quest requests include objective constraints and repeated API outputs are rejected',async()=>{let captured;const api=generationApi({OPENAI_API_KEY:'test-only',OPENAI_MODEL:'test-model'},async(url,options)=>{captured=JSON.parse(JSON.parse(options.body).input);return{ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({title:'Different title',description:'Same objective',sourceEventIds:['e1'],objectives:[{type:'visit_room',target:'home',description:'Go home'}]})}]}]})}});const r=await request(api,{...input,kind:'quest',pastQuests:[{title:'Previous',objectives:[{type:'visit_room',target:'home'}]}]});assert.equal(r.status,422);assert.equal(captured.questConstraints.allowedObjectives.some(o=>o.target==='home'),false)});

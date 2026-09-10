@@ -1,8 +1,5 @@
-export const COMBOS=[
- {id:'Cleave',name:'Cinder Cleave',steps:['Slash','Slash','Heavy'],keys:'Space → Space → Q',description:'Two quick cuts prime a blazing overhead strike.'},
- {id:'Cyclone',name:'Ash Cyclone',steps:['Dodge','Slash','Spin'],keys:'Shift → Space → E',description:'Roll, cut, then unleash a wide ring of ember blades.'},
- {id:'Breaker',name:'Forge Breaker',steps:['Bash','Heavy','Slash'],keys:'R → Q → Space',description:'A shield bash and heavy blow set up a piercing sword thrust.'}
-];
+import {COMBOS} from './content/game-config.js';
+export {COMBOS};
 export class ComboTracker {
  constructor(){this.reset()}
  reset(){this.steps=[];this.deadline=0}

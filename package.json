@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test world.test.js combos.test.js"
+    "test": "node --test world.test.js combos.test.js engine/*.test.js server/*.test.js"
   },
   "devDependencies": {
     "vite": "^7.1.0"
