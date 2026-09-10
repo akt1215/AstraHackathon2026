@@ -1,5 +1,5 @@
 import type { ActivityKind, LifeActivity, LifeCommandEnvelope, LifeEvent, LifePoint, LifeProvider, LifeResident, LifeResponse, LifeState, NeedKey } from '../life-types';
-import { approachResident, distance, route, walkable } from './navigation';
+import { approachResident, distance, nearestWalkable, route, walkable } from './navigation';
 import { createLifeWorld, DURATIONS, LABELS, NEEDS, SOCIAL } from './world';
 import { ACTS, ACT_KINDS, FEAR_THRESHOLD, fearAfterFade, fleesFrom, HURT_THRESHOLD, hurtAfterRecovery, refusesContact, traitsAfterActs, type ActKind } from './acts';
 import { conversationMemories, retainMemories } from './memory';
@@ -142,8 +142,8 @@ export class LifeSimulation {
       }
       switch (command.kind) {
         case 'walk': {
-          const destination = { x: command.x, z: command.z };
-          if (!walkable(this.world, destination)) throw new LifeError('Choose open floor away from furniture.');
+          const destination = nearestWalkable(this.world, { x: command.x, z: command.z });
+          if (!destination) throw new LifeError('There is no room to stand there.');
           this.schedule(player, this.make('walk', null, destination, false)); message = 'Walking there.'; break;
         }
         case 'use': {

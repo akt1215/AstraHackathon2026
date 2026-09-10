@@ -258,6 +258,24 @@ describe('continuous life simulation', () => {
       }
     }
   });
+  it('walks to the nearest reachable spot instead of refusing a click on furniture', () => {
+    const sim = new LifeSimulation();
+    const table = sim.state().objects.find(o => o.id === 'table')!;
+    // Clicking the dining table itself is a click at that part of the room, not an error.
+    expect(() => command(sim, { kind: 'walk', x: table.x, z: table.z })).not.toThrow();
+    const target = player(sim).activity?.destination!;
+    expect(target, 'a destination was chosen').toBeTruthy();
+    expect(walkable(sim.state(), target), 'and it is somewhere they can stand').toBe(true);
+    expect(Math.hypot(target.x - table.x, target.z - table.z), 'close to where the click landed').toBeLessThan(2.6);
+    advance(sim, 25);
+    expect(walkable(sim.state(), player(sim))).toBe(true);
+  });
+
+  it('still refuses a point with no room anywhere near it', () => {
+    const sim = new LifeSimulation();
+    expect(() => command(sim, { kind: 'walk', x: -40, z: -40 })).toThrow(/no room/i);
+  });
+
   it('blocks every static furnishing in addition to interactive furniture', () => {
     const state = new LifeSimulation().state();
     for (const fixture of STATIC_FIXTURES) expect(walkable(state, { x: fixture.x, z: Math.max(.4, fixture.z) }), fixture.id).toBe(false);
