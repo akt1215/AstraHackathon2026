@@ -696,6 +696,16 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       state.residents.forEach((resident, index) => { if (!people.has(resident.id)) people.set(resident.id, makePerson(resident, index)); });
       if (!focused || !residentIds.has(focused)) focused = state.residents.find(r => r.role === 'player')?.id ?? state.residents[0]?.id ?? '';
     },
+    movementDirection(horizontal, vertical) {
+      const forward = camera.getForwardRay().direction;
+      const length = Math.hypot(forward.x, forward.z);
+      if (length < .0001) return { x: 0, z: 0 };
+      const fx = forward.x / length, fz = forward.z / length;
+      const x = fz * horizontal - fx * vertical;
+      const z = -fx * horizontal - fz * vertical;
+      const magnitude = Math.hypot(x, z);
+      return magnitude > 0 ? { x: x / magnitude, z: z / magnitude } : { x: 0, z: 0 };
+    },
     focusResident(id) {
       focused = id; const person = people.get(id);
       if (person) camera.setTarget(person.root.position.add(new Vector3(0, .85, 0)));
