@@ -7,9 +7,9 @@ describe('resident model boundary', () => {
     expect(() => parseReaction({ action: 'teleport', speech: 'Yes' })).toThrow();
     expect(() => parseReaction({ action: 'share', speech: 'x'.repeat(401) })).toThrow();
     // An omitted classification must mean no harm, never an implied one.
-    expect(parseReaction({ action: 'walk_away', speech: 'I need some space.' })).toEqual({ action: 'walk_away', speech: 'I need some space.', harm: 'none' });
-    expect(() => parseReaction({ action: 'share', speech: 'Yes', harm: 'catastrophic' })).toThrow();
-    expect(parseReaction({ action: 'decline', speech: 'Get away from me.', harm: 'physical' }).harm).toBe('physical');
+    expect(parseReaction({ action: 'walk_away', speech: 'I need some space.' })).toEqual({ action: 'walk_away', speech: 'I need some space.', act: 'none' });
+    expect(() => parseReaction({ action: 'share', speech: 'Yes', act: 'catastrophic' })).toThrow();
+    expect(parseReaction({ action: 'decline', speech: 'Get away from me.', act: 'physical' }).act).toBe('physical');
   });
   it('reports an explicitly selected Astra without a key as unavailable, never as Claude', () => {
     const model = new LifeModel({ LIFE_PROVIDER: 'openai' });

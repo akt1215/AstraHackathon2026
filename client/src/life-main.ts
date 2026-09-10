@@ -1,5 +1,5 @@
 import type { ActivityKind, LifeCommand, LifeObject, LifeResident, LifeResponse, LifeState, LifeTheme } from '../../shared/life-types';
-import { HURT_THRESHOLD } from '../../shared/life/harm';
+import { EARNED_TRAITS, HURT_THRESHOLD } from '../../shared/life/acts';
 import { createLifeScene } from './life-scene';
 import '@fontsource/dm-sans/latin-400.css';
 import '@fontsource/dm-sans/latin-500.css';
@@ -102,8 +102,6 @@ let movePending = false;
 let persistenceError: string | null = null;
 let polls = 0;
 let paintedTraits = '';
-/** Traits the world assigns for conduct, highlighted so an earned reputation is unmissable. */
-const EARNED_TRAITS = ['Callous', 'Violent'];
 let visualsReady = false;
 let controlsReady = false;
 const canvas = $<HTMLCanvasElement>('#world-canvas');

@@ -19,8 +19,12 @@ export interface LifeResident extends LifePoint {
   traits: string[]; aspiration: string; mood: string;
   /** Injury 0-100 from being harmed, recovering over simulated time. */
   hurt: number;
-  /** How many times this resident has harmed someone; drives earned traits. */
+  /** Fear of each other resident, 0-100, keyed by their id. High fear means keeping away. */
+  fear: Record<string, number>;
+  /** How many unkind acts this resident has committed; drives an earned reputation. */
   harmDone: number;
+  /** How many kind acts this resident has committed; earns a reputation of its own. */
+  kindDone: number;
   needs: Record<NeedKey, number>; relationships: Record<string, number>;
   memories: LifeMemory[]; activity: LifeActivity | null; queue: LifeActivity[];
   facing: number; speech: string | null; speechUntil: number;
@@ -31,6 +35,10 @@ export interface LifeState {
   id: string; version: number; elapsed: number; day: number; hour: number; minute: number;
   speed: 0 | 1 | 3; theme: LifeTheme; title: string;
   residents: LifeResident[]; objects: LifeObject[]; events: LifeEvent[];
+  /** Simulated time until which the player is detained and cannot act. */
+  arrestedUntil: number;
+  /** Times the police have been called on this household. */
+  arrests: number;
   provider: LifeProvider; width: number; depth: number;
 }
 export type LifeCommand =

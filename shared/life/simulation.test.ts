@@ -58,13 +58,72 @@ describe('continuous life simulation', () => {
     expect(restored.state().version).toBe(version);
     advance(restored, 20); expect(player(restored).needs.energy).toBeGreaterThan(player(sim).needs.energy);
   });
+  it('makes kindness land on the world too, not only cruelty', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    const before = player(sim).relationships.june ?? 0;
+    const fun = sim.state().residents.find(r => r.id === 'june')!.needs.fun;
+    expect(sim.applyReaction(sim.beginTalk('june', 'I cooked you dinner.'), { action: 'accept_chat', speech: 'That is so kind.', act: 'help' })).toBe(true);
+    const june = sim.state().residents.find(r => r.id === 'june')!;
+    expect(june.needs.fun).toBeGreaterThanOrEqual(fun);
+    expect(player(sim).relationships.june).toBeGreaterThan(before);
+    expect(june.activity?.kind, 'she does not flee kindness').not.toBe('walk');
+    expect(player(sim).kindDone).toBe(1);
+    expect(sim.state().events.some(e => /helped June/.test(e.text))).toBe(true);
+  });
+
+  it('earns a warm reputation for repeated kindness', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    for (let i = 0; i < 3; i++) {
+      sim.applyReaction(sim.beginTalk('june', 'a kindness'), { action: 'accept_chat', speech: 'Thank you.', act: 'gift' });
+      advance(sim, 3);
+    }
+    expect(player(sim).traits).toContain('Thoughtful');
+    expect(player(sim).traits).not.toContain('Callous');
+  });
+
+  it('sends the police after violence and takes the controls away while they deal with it', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'decline', speech: 'Get away.', act: 'physical' });
+    expect(sim.state().arrests).toBe(1);
+    expect(sim.state().arrestedUntil).toBeGreaterThan(sim.state().elapsed);
+    expect(player(sim).traits).toContain('Charged');
+    expect(() => command(sim, { kind: 'walk', x: 6, z: 6 })).toThrow(/police/i);
+    expect(sim.state().events.some(e => /called the police/.test(e.text))).toBe(true);
+    // The world keeps running while the player is held, and control comes back afterwards.
+    advance(sim, 50);
+    expect(() => command(sim, { kind: 'walk', x: 6, z: 6 })).not.toThrow();
+  });
+
+  it('makes a frightened resident leave when the person they fear comes close', () => {
+    const sim = new LifeSimulation();
+    command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'decline', speech: 'Stay back.', act: 'physical' });
+    advance(sim, 50);
+    const scared = sim.state().residents.find(r => r.id === 'june')!;
+    expect(scared.fear.player, 'she is afraid of him').toBeGreaterThan(30);
+    // Follow her: she should get up and move away rather than wait to be spoken to.
+    for (let i = 0; i < 6; i++) {
+      const june = sim.state().residents.find(r => r.id === 'june')!;
+      const spot = [[0, -1.1], [0, 1.1], [-1.1, 0], [1.1, 0]]
+        .map(([dx, dz]) => ({ x: june.x + dx!, z: june.z + dz! }))
+        .find(point => walkable(sim.state(), point));
+      if (spot) { try { command(sim, { kind: 'walk', ...spot }); } catch { /* she may already be moving */ } }
+      advance(sim, 5);
+    }
+    const after = sim.state().residents.find(r => r.id === 'june')!;
+    expect(after.activity?.kind === 'walk' || Math.hypot(after.x - player(sim).x, after.z - player(sim).z) > 2, 'she keeps her distance').toBe(true);
+  });
+
   it('makes violence land on the world instead of only being disapproved of', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
     const before = player(sim).relationships.june ?? 0;
     const request = sim.beginTalk('june', 'I punched her.');
     // The model may still propose a friendly outcome; the classification is what the engine acts on.
-    expect(sim.applyReaction(request, { action: 'accept_chat', speech: 'Why would you do that?', harm: 'physical' })).toBe(true);
+    expect(sim.applyReaction(request, { action: 'accept_chat', speech: 'Why would you do that?', act: 'physical' })).toBe(true);
     const june = sim.state().residents.find(r => r.id === 'june')!;
     expect(june.hurt, 'june is injured').toBeGreaterThan(20);
     expect(june.mood).toBe('Hurt');
@@ -80,7 +139,7 @@ describe('continuous life simulation', () => {
   it('refuses the harmed resident being approached again while she is still hurt', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
-    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'accept_chat', speech: 'Stop.', harm: 'physical' });
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'accept_chat', speech: 'Stop.', act: 'physical' });
     const reply = sim.applyReaction(sim.beginTalk('june', 'Lets share a meal'), { action: 'share', speech: 'Of course, sit down.' });
     expect(reply).toBe(true);
     expect(sim.state().residents.find(r => r.id === 'june')!.activity?.kind, 'she will not share a meal with him').not.toBe('share');
@@ -101,8 +160,9 @@ describe('continuous life simulation', () => {
           .find(point => walkable(sim.state(), point));
         if (spot) { command(sim, { kind: 'walk', ...spot }); advance(sim, 10); }
       }
-      sim.applyReaction(sim.beginTalk('june', 'again'), { action: 'decline', speech: 'Stop it.', harm: 'physical' });
-      advance(sim, 4);
+      sim.applyReaction(sim.beginTalk('june', 'again'), { action: 'decline', speech: 'Stop it.', act: 'physical' });
+      // The police detain the player after violence, so nothing else can be commanded until it ends.
+      advance(sim, 50);
     }
     expect(player(sim).traits).toContain('Violent');
     expect(player(sim).traits).not.toContain('Callous');
@@ -113,13 +173,13 @@ describe('continuous life simulation', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
     const request = sim.beginTalk('june', 'hello');
-    expect(() => sim.applyReaction(request, { action: 'accept_chat', speech: 'hi', harm: 'catastrophic' as never })).toThrow();
+    expect(() => sim.applyReaction(request, { action: 'accept_chat', speech: 'hi', act: 'catastrophic' as never })).toThrow();
   });
 
   it('heals an injury over time so the world does not stay broken', () => {
     const sim = new LifeSimulation();
     command(sim, { kind: 'walk', x: 2, z: 3.5 }); advance(sim, 3);
-    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'decline', speech: 'Go away.', harm: 'physical' });
+    sim.applyReaction(sim.beginTalk('june', 'I hit her'), { action: 'decline', speech: 'Go away.', act: 'physical' });
     expect(sim.state().residents.find(r => r.id === 'june')!.hurt).toBeGreaterThan(20);
     advance(sim, 900);
     expect(sim.state().residents.find(r => r.id === 'june')!.hurt).toBe(0);
