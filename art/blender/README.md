@@ -1,6 +1,6 @@
 # Original cinematic furniture
 
-The eight GLBs in `client/public/life-assets/cinematic/` are original procedural models for the loft. They have no third-party mesh, texture, add-on, or decoder dependency. Scanned PBR textures are supplied separately by the runtime material layer.
+The eleven GLBs in `client/public/life-assets/cinematic/` are original procedural models for the loft. They have no third-party mesh, texture, add-on, or decoder dependency. Scanned PBR textures are supplied separately by the runtime material layer.
 
 ## Reproduce
 
@@ -12,7 +12,7 @@ Built with the user's installed **Blender 5.2.1 LTS**. The generation script als
 node art/blender/validate_kit.mjs
 ```
 
-The first command generates eight compressed `.blend` source files and eight GLB exports, then records exact bounds, materials, triangle counts and hashes in the runtime manifest. The second imports the **exported GLBs** and renders each under the same studio lighting. These product previews show asset geometry; they are **not gameplay captures**. The third verifies all eight with Babylon's glTF importer independently of Blender.
+The first command generates the compressed `.blend` source files and their GLB exports, then records exact bounds, materials, triangle counts and hashes in the runtime manifest. The second imports the **exported GLBs** and renders each under the same studio lighting. These product previews show asset geometry; they are **not gameplay captures**. The third verifies all eleven with Babylon's glTF importer independently of Blender.
 
 ## Coordinate contract
 
@@ -25,6 +25,9 @@ The first command generates eight compressed `.blend` source files and eight GLB
 - Kitchen: 3 × 0.69m. Rotate π to face world +Z; cabinet pulls extend about 5cm beyond its front edge. Counter 0.90m, highest pantry vessel 2.23m.
 - Refrigerator: 0.9 × 0.9m, top 1.87m. Finished French doors, recessed pulls, side service panels and rear cooling coils all fit the nominal footprint.
 - Bookcase: local 1.8 × 0.7m, top 2.30m. Cupboards, book groups, ceramics and framed artwork stay inside the existing footprint.
+- Wall shelf: local 1.72 × 0.30m. Origin sits **on the wall face at the lowest bracket point**, not on the floor, so the kit's shared "nothing below the origin" invariant still holds; `validate_kit.mjs` rejected the first export for breaking it. Planks project −Z with tops at 0.232 and 0.672; the tallest vessel reaches 0.972.
+- Coffee table: local 1.15 × 0.62m, top 0.446m, lower magazine shelf 0.189m. Books, brass tray, candle and shelved magazines all sit inside the nominal footprint.
+- Armchair: local 0.86 × 0.88m, seat 0.617m, arm cap 0.818m, back cushion top 1.01m. The wool throw sits over the **back**; draped over an arm it put cloth 17cm outside the nominal footprint, which the exported bounds caught.
 - Window frame: 3.02m wide × 2.40m high. Place the origin at the opening's sill. Panes are deliberately open for separately rendered glazing and city depth.
 
 Hard surfaces use dominant-axis planar UV projection in meters; fabric uses explicit continuous surface UVs in meters. **One UV unit corresponds to one meter** before runtime texture repeat. Runtime material names all begin `cinematic.` and are enumerated per asset in the manifest. Material colors are stored in linear space; roughness/metallic values are authored but can be replaced by scanned maps.

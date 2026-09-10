@@ -44,7 +44,7 @@ Keep the current warm, lived-in loft identity. Aim for physically convincing woo
 
 Blender 5.2.1 is installed at `/Applications/Blender.app` and has generated the furniture assets through its command-line interface. No Blender add-on or MCP connector is needed. Unity is unnecessary for this browser approach; changing engines would add work without supplying the missing art assets. Blender can also run reproducible scripts without an MCP connector once installed.
 
-The user approved the visual target and installed Blender 5.2.1. Eight detailed GLB assets, scanned PBR materials, city geometry, lighting and reduced HUD are integrated and committed. Final production rebuild and full visual/gameplay checks remain pending. Work is handed to Claude Code at the user’s request; see `../CLAUDE_HANDOFF.md`. The existing production bundle predates the final integration.
+The user approved the visual target and installed Blender 5.2.1. Eleven detailed GLB assets, scanned PBR materials, city geometry and a reworked lighting/grade pass are integrated and committed, and the production bundle has been rebuilt. Step 5 of the approach remains the honest open item: the low-detail characters are now the largest visible fidelity gap, and detailed rigged people are a separate asset milestone that was not attempted. The user rejected the mid-pass result as still stylized rather than photorealistic; the follow-up targeted lighting rather than geometry, which is where the cited reference's own author locates its realism. Measured results and the fidelity statement are in `../LIFE_VERIFICATION.md`.
 
 ## Self-review
 

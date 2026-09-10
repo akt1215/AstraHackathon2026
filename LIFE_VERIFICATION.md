@@ -48,6 +48,27 @@ A separate production fixture on port 8794 ran with `LIFE_PROVIDER=offline`. Hou
 - Character assets import and animate; sitting/sleeping use procedural poses where the source pack lacks specific clips. Other interactions use generic supplied clips. There is no claim of bespoke animation quality.
 - Fonts are bundled locally with their OFL licenses; the client no longer depends on a remote font request.
 
+## Cinematic lighting and furnishing pass (September 10, follow-up)
+
+Measured in Chrome at 1440×900 on the isolated offline fixture (port 8795), reading `canvas[data-scene-performance]` after warmup:
+
+| Preset | FPS | median | p95 | max | stalls >50ms |
+| --- | --- | --- | --- | --- | --- |
+| City loft | 112.4 | 8.4ms | 11.6ms | 16.7ms | 0 |
+| Lantern house | 120 | 8.3ms | 9.1ms | 11.3ms | 0 |
+| Skyline studio | 120 | 8.3ms | 9.3ms | 11.6ms | 0 |
+| City loft, 390×844 portrait | 120 | 8.3ms | 9.2ms | 9.7ms | 0 |
+
+These are single samples on one machine, not a cross-device guarantee. The pre-pass baseline on the same machine was 117.5 FPS with one stall and a 121.9ms max, so the added lighting cost is visible in the average but removed the stall.
+
+**What changed and why.** The room was lit by a steep, weak, cool key with almost no falloff, which is what made it read as a stylized dollhouse; the geometry was not the main gap. Replaced with a low raking warm key against a cool skylight and a warm floor bounce, contact-hardening shadows, practical lamp pools with visible falloff, a sealed floor finish carrying a specular streak, stronger SSAO, and a filmic grade (ACES, cool shadows, warm highlights, held-back saturation, vignette, grain, shallow focus falling off into the city). Three new Blender assets — open wall shelving, a coffee table and an armchair — plus a third rug closed the density gap against the concept.
+
+**Honest fidelity statement.** This does not reach the photorealism of the Afterlight reference frame, and no claim of UE5-class or photoreal parity is made. The reference's own author describes it as "voxel-ish art style, and lighting that feels real and physical"; this pass targets that lighting axis, in a browser, on a night interior. Character models remain low-detail and are still the largest visible fidelity gap. Volumetric light shafts were considered and not implemented: the key light sits outside the camera frustum at this framing, so Babylon's volumetric scattering would render nothing without changing the scene's time of day.
+
+**Checked after the pass.** Typecheck clean; 116 tests across 16 files pass. All three presets inspected in the production build; light and dark interface themes inspected; 390×844 portrait inspected with document scroll width exactly 390 and no horizontal overflow. The sofa interaction was driven end to end through the interface — the resident routed to the sofa approach at (2.00, 6.80) and completed Unwinding — confirming the new coffee-table footprint does not swallow that approach. `art/blender/validate_kit.mjs` verifies all eleven GLBs through Babylon's importer independently of Blender.
+
+**Two defects found and fixed during the pass.** Rug fringe meshes were pickable but carried no metadata, so a click landing on one resolved to nothing and click-to-walk silently died along every rug border. The wall-shelf asset's first export placed geometry below its origin, which the kit validator rejected; the origin was moved to the lowest bracket rather than relaxing the invariant. A new test asserts every furniture approach point and resident start position stays walkable as static decor is added; it was observed failing against a deliberately blocking fixture before being trusted.
+
 ## Remaining limits and adoption gate
 
 **Astra verified September 10 after the key was configured.** The isolated `life-probe.ts` request used `gpt-6-astra`, returned a valid `share` decision in **4,149 ms**, and `applyReaction` returned true with June entering Sharing a meal and emitting the cooperation event. The production server was gracefully restarted with the same world identity, its health endpoint reports Astra / gpt-6-astra, and the browser badge agrees. The probe did not modify the live save. This verifies the model/engine path; a production-browser Astra conversation was not sent during this follow-up.
