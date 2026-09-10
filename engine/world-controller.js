@@ -4,7 +4,7 @@ export const isTextEntry=target=>Boolean(target?.closest?.('input,textarea,selec
 // the request returns, so walking and local combat never wait for inference.
 export class WorldController {
  constructor({simulation,runtime,snapshot,applyPhysical=()=>{},changed=()=>{},fetcher=fetch,canReact=()=>true}) {
-  Object.assign(this,{simulation,runtime,snapshot,applyPhysical,changed,fetcher,canReact});
+  Object.assign(this,{simulation,runtime,snapshot,applyPhysical,changed,canReact});this.fetcher=(...args)=>fetcher(...args);
   this.enabled=false;this.provider=null;this.playerPending=false;this.queued=new Set();this.failed=new Set();this.worker=null;this.status='Connecting storyteller…';this.saveTimer=null;this.lastSavedVersion=-1;
  }
  async connect(){try{const response=await this.fetcher('/api/world/info',{signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error('Storyteller unavailable.');const result=await response.json();this.provider=result.provider&&typeof result.provider==='object'?result.provider:result;this.enabled=this.provider.provider!=='offline';this.status=this.enabled?(this.provider.available?'Your words can change this world.':'The storyteller needs a retry. Your next action will try again.'):'Storyteller offline · exploring and direct interactions work.';if(this.enabled){for(const id of this.failed)this.queued.add(id);this.failed.clear();this.observe();}}catch{this.enabled=false;this.status='Storyteller offline · exploring and direct interactions work.'}this.changed();return this.enabled;}
