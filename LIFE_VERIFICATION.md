@@ -50,6 +50,6 @@ A separate production fixture on port 8794 ran with `LIFE_PROVIDER=offline`. Hou
 
 ## Remaining limits and adoption gate
 
-**Astra has not been verified.** Configure a local ignored `.env` using `life.env.example`, restart, then demonstrate one actual free-text Astra reply and its applied consequence. A configured badge alone is not sufficient evidence.
+**Astra verified September 10 after the key was configured.** The isolated `life-probe.ts` request used `gpt-6-astra`, returned a valid `share` decision in **4,149 ms**, and `applyReaction` returned true with June entering Sharing a meal and emitting the cooperation event. The production server was gracefully restarted with the same world identity, its health endpoint reports Astra / gpt-6-astra, and the browser badge agrees. The probe did not modify the live save. This verifies the model/engine path; a production-browser Astra conversation was not sent during this follow-up.
 
 The three worlds are authored visual presets using the same home and rules. Arbitrary fictional-world generation, build/buy, careers, character creation, household switching, multiplayer, voice and production-scale asset fidelity remain outside this proof. This branch has not replaced or been merged into the existing submission, and no public deployment or submission was made.
