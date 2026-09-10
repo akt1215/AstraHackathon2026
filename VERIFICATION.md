@@ -1,5 +1,36 @@
 # Verification — September 10, 2026
 
+## Latest: teammate integration
+
+Verified the combined implementation on `codex/teammate-integration`: **88 tests**, typecheck,
+production build and diff check pass. Earlier counts below describe previous milestones.
+Source revisions and explicit deferred systems are in `INTEGRATION_PLAN.md`.
+
+New regressions cover containers and nested private inventories, private clues, permanent
+noisy lever damage, food/debt persistence, request-content conflicts after reload, cosmetic
+validation/persistence without turns, inference concurrency, and delayed cross-story responses.
+Review reproduced and fixed two secrecy/retention bugs: an open container held by another
+character exposed its contents, and learned writing became unreadable after feed churn.
+The journal now preserves all discoveries plus 120 recent meaningful observations using the
+same redaction as the live feed. Pure inspection invokes no unchanged NPC decisions.
+
+The first live Claude attempt exposed an ambiguous transform contract: entity=player,
+target=chest was rejected by the engine. Clarifying the entity/target mapping produced a
+clean four-case run: open chest **3,853 ms**, read note **6,082 ms**, put note into chest
+**4,388 ms**, force latch with crowbar **7,621 ms**. The last case actually opened and damaged
+the gate and woke the sleeping keeper. These are bounded controlled checks, not guarantees
+about every paraphrase. Raw results: ignored `artifacts/teammate-probe.json`.
+
+Built-app browser checks used an isolated offline server on 8789: character cancellation
+left the original appearance intact; save and reload preserved Ember/Violet/Long without
+advancing turn 0; two approach steps, chest opening, separate note/ration controls, private
+note inspection and journal display worked. Inspected dark/light desktop and 390×844 phone
+layout, including the appearance dialog; document width stayed 390px. Ordinary walking and
+inspection retained their short pending behavior. Nine OGG assets decode successfully with
+FFmpeg; sound mute/fallback are implemented, but audible quality was not independently
+auditioned. No hosted deployment, export workflow, multi-room migration, or live OpenAI
+verification is claimed.
+
 Verified artifact: the new one-room implementation, built on `codex/one-room-proof`.
 The earlier reference build was not used as evidence of correctness.
 

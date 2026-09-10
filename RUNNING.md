@@ -42,6 +42,15 @@ one step; click an object to inspect it, then use its contextual action or E. Us
 prominent text field for your own phrasing and combinations. There is no player verb list.
 Walking advances locally without a model call unless an NPC first notices someone, receives a meaningful observation, changes condition, or sees you enter the guarded threshold. Recognition persists across reloads and leaving view. An agreed follower continues through local movement rules. Dialogue, actual object interactions and intentional waits still offer NPC decision turns.
 
+The teammate integration adds a chest, a readable note, food, a crowbar and a linked
+shutter release to **new stories**. Open the chest to reveal its contents; “Also here”
+buttons let you select each item separately. Examine reads the note, and its discovered
+text stays in the journal. Inspection uses the same selective reaction policy as walking.
+Food is consumed to reduce fatigue. A crowbar can force a leverable latch with noise and
+20 fatigue, leaving it permanently damaged; a watching keeper still blocks forced entry.
+The new rules also support putting held items back into open containers through free text.
+Existing saves keep their objects and progress; they are not silently reset or repopulated.
+
 Objects have actual positions, holders and properties: a fragile thrown object breaks
 and makes noise, a small object fits the gate gap, a crate obstructs a cell, and medicine
 is consumed when used. A gentle handoff and an intentional impact have different effects.
@@ -60,6 +69,11 @@ evidence that feeds later decisions. These are bounded proof mechanisms, not a f
 personality model, commitment system, universal physics or campaign generator.
 
 The UI displays committed effects, inventory, character evidence and the objective.
+Edit appearance changes a saved name and bounded pixel appearance without spending a
+turn or changing capabilities. Cancel keeps the current character; a new story keeps the
+chosen appearance. The journal contains your observed events and discoveries, with no
+extra inference calls. Object art and recorded sound come from the teammate builds;
+see `client/public/CREDITS.md` and `INTEGRATION_PLAN.md` for provenance and integration scope.
 Color theme and sound mute persist locally. Device mute does not change world hearing.
 The receipt displays actual source and timing; basic fallback is explicit. Typed input
 survives provider errors so it can be retried.
@@ -81,6 +95,10 @@ Run `node --env-file-if-exists=.env --import tsx server/acceptance.ts` for the b
 Claude comparison suite. It writes the actual outcomes to ignored
 `artifacts/live-acceptance.json`; it is separate from deterministic unit tests and uses
 real model calls. The interpretation and NPC outputs can vary between runs.
+
+Run `node --env-file-if-exists=.env --import tsx server/teammate-probe.ts` for four live
+checks of the new container, reading, storage and lever rules. It uses disposable in-memory
+worlds and writes `artifacts/teammate-probe.json`, without touching your active save.
 
 Before expanding to more rooms, conduct an uncoached playtest and broader history tests.
 The existing proof does not establish unlimited replayability or generalized moral
