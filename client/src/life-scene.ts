@@ -265,11 +265,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       for (let i = 0; i < n; i += 3) { ctx.fillStyle = 'rgba(255,255,255,.045)'; ctx.fillRect(i, 0, 1, n); }
     });
     const mesh = box(name, [w, .018, d], [x, .014, z], mat, undefined, false);
-    for (const sign of [-1, 1]) for (let i = 0; i < w * 12; i++) box('rug-fringe', [.026, .012, .09], [x - w / 2 + i / 12, .016, z + sign * (d / 2 + .04)], cream, undefined, false);
+    for (const sign of [-1, 1]) for (let i = 0; i < w * 12; i++) box('rug-fringe', [.026, .012, .09], [x - w / 2 + i / 12, .016, z + sign * (d / 2 + .04)], cream, undefined, false).isPickable = false;
     mesh.isPickable = false;
   }
   rug('living-room-kilim', 2.8, 7.15, 4.5, 3.55, '#916456', 'border');
   rug('bedroom-woven-rug', 10.2, 1.7, 3.25, 3.1, '#a8a79a', 'stripe');
+  rug('studio-kilim-rug', 7.45, 6.15, 3.5, 2.9, '#6d4f3d', 'border');
 
   function plant(parent: TransformNode | undefined, x: number, y: number, z: number, scale = 1): void {
     const root = new TransformNode('ceramic-planter', scene); root.parent = parent ?? null; root.position.set(x, y, z); root.scaling.setAll(scale);
@@ -437,6 +438,18 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   const cinematicKitchen = new TransformNode('modeled-kitchen', scene);
   cinematicKitchen.position.set(counterFixture.x, 0, counterFixture.z); cinematicKitchen.rotation.y = Math.PI;
   void loadCinematicAsset('kitchen', cinematicKitchen).then(loaded => { if (loaded) kitchenFallback.forEach(mesh => mesh.dispose()); });
+
+  // Open storage shelving on the plaster wall; it must fade with the wall it hangs on.
+  const cinematicShelf = new TransformNode('modeled-wall-shelf', scene);
+  cinematicShelf.position.set(.02, 1.3, 7.86); cinematicShelf.rotation.y = -Math.PI / 2;
+  void loadCinematicAsset('wall-shelf', cinematicShelf).then(loaded => {
+    if (!loaded) return;
+    for (const mesh of cinematicShelf.getChildMeshes()) if (mesh instanceof Mesh) wallFaces.push({ mesh, side: 'left' });
+  });
+  const coffeeFixture = STATIC_FIXTURES.find(item => item.id === 'coffee-table')!;
+  const cinematicCoffeeTable = new TransformNode('modeled-coffee-table', scene);
+  cinematicCoffeeTable.position.set(coffeeFixture.x, 0, coffeeFixture.z);
+  void loadCinematicAsset('coffee-table', cinematicCoffeeTable);
 
   function makeProp(object: LifeObject): PropRig {
     const root = new TransformNode(`object-${object.id}`, scene); root.metadata = { objectId: object.id };
