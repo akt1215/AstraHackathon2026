@@ -32,3 +32,16 @@ body.interface-hidden .topbar,body.interface-hidden .place-caption,body.interfac
 @media(max-width:899px){.interface-button,.restore-interface{bottom:8px;padding:6px 9px;font-size:9px}.interface-button kbd,.restore-interface kbd{display:none}.provider-badge{max-width:calc(50vw - 12px);font-size:6px}.place-caption{top:97px;left:20px}.life-feed{top:100px}}
 @media(max-width:540px){.place-caption{top:116px;left:15px}.interface-button,.restore-interface{bottom:auto;top:112px;left:auto;right:12px;transform:none}.interface-button>span{display:none}.interface-button{padding:6px}.restore-interface{top:18px}}
 @media(max-width:370px){.place-caption{top:126px}.interface-button{top:118px}}
+
+/* Conduct the world has recorded: an earned reputation and a visible injury. Light palette first,
+   with a dark-ui override, so neither theme is left with red text on a red wash. */
+.trait-list.compact{margin:7px 0 0;gap:4px}
+.trait-list.compact>span{font-size:8px;padding:3px 6px}
+.trait-list>span.trait-earned{background:#f3d9d1;color:#8a3a26;font-weight:600}
+.mood.mood-harmed{background:#f3d9d1;color:#8a3a26}
+.hurt-badge{align-self:center;font-size:7px;letter-spacing:1.1px;text-transform:uppercase;font-weight:600;padding:3px 6px;border-radius:20px;background:#f3d9d1;color:#8a3a26}
+.hurt-note{font-size:10px;line-height:1.6;color:#8a3a26;background:#f7e2db;border-left:2px solid #c4705a;padding:8px 10px;border-radius:7px;margin:14px 0 0}
+.dark-ui .trait-list>span.trait-earned{background:#5a2a1e;color:#ffd2c4}
+.dark-ui .mood.mood-harmed{background:#5a2a1e;color:#ffd2c4}
+.dark-ui .hurt-badge{background:#5a2a1e;color:#ffd2c4}
+.dark-ui .hurt-note{background:#43241b;color:#f6cfc2;border-left-color:#a8523b}

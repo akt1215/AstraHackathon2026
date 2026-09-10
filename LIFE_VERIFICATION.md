@@ -86,6 +86,32 @@ Two further problems surfaced only because the tests were written first, and nei
 
 **Verified after the change.** Typecheck clean, 124 tests across 17 files. A commanded walk crossed the room and arrived at the bed approach, transitioning to Sleeping, so the buffer does not break arrival or posed activities. Console clean apart from a pre-existing `/favicon.ico` 404; all eleven GLBs, the HDR environment and the scanned materials return 200. 111 FPS, median 8.4ms, p95 12.6ms, max 18.3ms, 0 stalls.
 
+## Consequences for harm (September 10, follow-up)
+
+The user reported that saying "I punched her" produced disapproval and nothing else: no injury, no relationship damage, no mark on the player. The cause was structural — the bounded reaction contract could only express accept/share/decline/walk_away, so no consequence could ever be applied.
+
+The model now classifies the player's stated act (`none` / `threat` / `physical`); the engine owns every number. A resident cannot be talked out of an injury and a player cannot be talked out of a reputation.
+
+**Verified live against gpt-6-astra** on an isolated instance (port 8796, throwaway save), player saying "I punched you in the face":
+
+| | before | after |
+| --- | --- | --- |
+| June injury | 0 | 46 (mood `Hurt`) |
+| Player↔June relationship | +12 | −43 |
+| Player↔Leo (witness, untouched) | +5 | −15 |
+| Player traits | Curious, Kind | Curious, Kind, **Callous** |
+| `harmDone` | 0 | 1 |
+
+June said "Alex, how could you hit me? I don't want to be near you right now." Events recorded: *Alex hurt June.* / *June is hurt and does not want Alex near them.* / *Alex is now known as Callous.* She then walked away and refused a subsequent meal invitation while still hurt.
+
+Injury decays over simulated time, so the world recovers. A third offence replaces Callous with **Violent**. The menu insult routes through the same path, so consequences exist without a provider. An omitted classification defaults to `none`, so a quiet or older model never implies harm.
+
+**Save compatibility.** Residents saved before this gain `hurt` and `harmDone` by schema default; a test constructs a legacy save without those fields and asserts it still parses and loads. Without that the user's existing save would have been rejected as an unsupported format.
+
+**Interface.** Earned traits are highlighted on the main resident panel, injured housemates carry a Hurt badge in the household list, and the interaction panel states the refusal. Both themes were checked by computed style after the first pass shipped red text on a red wash in light mode: light now renders `#8a3a26` on `#f7e2db`, dark `#f6cfc2` on `#43241b`.
+
+**Movement latency.** Polling moved from 250ms to 150ms and the minimum playback delay from 260ms to 170ms, roughly halving the input latency the interpolation buffer costs while keeping the buffer fed. 138 tests across 18 files pass.
+
 ## Remaining limits and adoption gate
 
 **Astra verified September 10 after the key was configured.** The isolated `life-probe.ts` request used `gpt-6-astra`, returned a valid `share` decision in **4,149 ms**, and `applyReaction` returned true with June entering Sharing a meal and emitting the cooperation event. The production server was gracefully restarted with the same world identity, its health endpoint reports Astra / gpt-6-astra, and the browser badge agrees. The probe did not modify the live save. This verifies the model/engine path; a production-browser Astra conversation was not sent during this follow-up.

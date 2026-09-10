@@ -1,4 +1,5 @@
 import type { ActivityKind, LifeCommand, LifeObject, LifeResident, LifeResponse, LifeState, LifeTheme } from '../../shared/life-types';
+import { HURT_THRESHOLD } from '../../shared/life/harm';
 import { createLifeScene } from './life-scene';
 import '@fontsource/dm-sans/latin-400.css';
 import '@fontsource/dm-sans/latin-500.css';
@@ -75,7 +76,7 @@ $('#life-app').innerHTML = `
   <button id="interface-button" class="interface-button glass" aria-label="Hide interface" title="Hide interface · H">${icon('eye')}<span>Hide interface</span><kbd>H</kbd></button>
   <button id="restore-interface" class="restore-interface glass" aria-label="Show interface">${icon('eye')}<span>Show interface</span><kbd>H</kbd></button>
   <section class="life-feed" aria-label="Recent moments"><div class="feed-heading"><span class="live-dot"></span> LIFE, LATELY</div><div id="recent-events"><p class="feed-empty">Your story is just beginning.</p></div></section>
-  <section class="resident-panel glass" aria-label="Your resident"><div class="resident-header"><button id="player-focus" class="portrait portrait-player" aria-label="Focus on your resident"><span class="avatar-face"></span></button><div class="resident-name"><small>YOUR RESIDENT</small><h2 id="player-name">You</h2><span id="player-mood" class="mood">Feeling at home</span></div><button id="household-button" class="quiet-button" aria-label="Activities in your home" title="Activities in your home">${icon('home')}</button><button id="resident-focus" class="quiet-button" aria-label="Focus camera on your resident" title="Find your resident">${icon('target')}</button></div><div id="needs" class="needs">${(['hunger','energy','social','fun'] as const).map(n=>`<div class="need"><div class="need-label">${icon(n==='hunger'?'food':n==='social'?'heart':n)}<span>${n[0].toUpperCase()+n.slice(1)}</span><b id="need-value-${n}">—</b></div><div class="need-track"><div id="need-bar-${n}" class="need-fill ${n}"></div></div></div>`).join('')}</div><div class="activity-line"><span id="activity-icon">${icon('leaf')}</span><div><strong id="activity-label">Taking it all in</strong><div class="activity-track"><div id="activity-progress"></div></div></div><button id="cancel-activity" class="quiet-button" aria-label="Cancel activity" title="Cancel activity">${icon('close')}</button></div><div id="activity-queue" class="activity-queue"></div></section>
+  <section class="resident-panel glass" aria-label="Your resident"><div class="resident-header"><button id="player-focus" class="portrait portrait-player" aria-label="Focus on your resident"><span class="avatar-face"></span></button><div class="resident-name"><small>YOUR RESIDENT</small><h2 id="player-name">You</h2><span id="player-mood" class="mood">Feeling at home</span><div id="player-traits" class="trait-list compact"></div></div><button id="household-button" class="quiet-button" aria-label="Activities in your home" title="Activities in your home">${icon('home')}</button><button id="resident-focus" class="quiet-button" aria-label="Focus camera on your resident" title="Find your resident">${icon('target')}</button></div><div id="needs" class="needs">${(['hunger','energy','social','fun'] as const).map(n=>`<div class="need"><div class="need-label">${icon(n==='hunger'?'food':n==='social'?'heart':n)}<span>${n[0].toUpperCase()+n.slice(1)}</span><b id="need-value-${n}">—</b></div><div class="need-track"><div id="need-bar-${n}" class="need-fill ${n}"></div></div></div>`).join('')}</div><div class="activity-line"><span id="activity-icon">${icon('leaf')}</span><div><strong id="activity-label">Taking it all in</strong><div class="activity-track"><div id="activity-progress"></div></div></div><button id="cancel-activity" class="quiet-button" aria-label="Cancel activity" title="Cancel activity">${icon('close')}</button></div><div id="activity-queue" class="activity-queue"></div></section>
   <div class="bottom-center"><div id="input-hint" class="controls-hint"><span>Click to walk</span><i>·</i><span>WASD to move</span><i>·</i><span>Drag to orbit</span></div><div id="save-status" class="save-status">${icon('check')} Your life saves automatically</div></div>
   <section id="people-panel" class="people-panel glass" aria-label="People in your world"><div class="panel-heading"><span>Your little circle</span><small id="people-count">2 HOUSEMATES</small></div><div id="people-list"></div><button id="journal-button" class="journal-button">${icon('book')} Memories & relationships ${icon('arrow')}</button></section>
   <section id="context-panel" class="context-panel glass hidden" aria-label="Interaction options"></section>
@@ -100,6 +101,9 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let movePending = false;
 let persistenceError: string | null = null;
 let polls = 0;
+let paintedTraits = '';
+/** Traits the world assigns for conduct, highlighted so an earned reputation is unmissable. */
+const EARNED_TRAITS = ['Callous', 'Violent'];
 let visualsReady = false;
 let controlsReady = false;
 const canvas = $<HTMLCanvasElement>('#world-canvas');
@@ -178,6 +182,12 @@ function acceptState(next: LifeState) {
   if (!player) return;
   $('#player-name').textContent = player.name;
   $('#player-mood').textContent = player.mood || 'Feeling at home';
+  $('#player-mood').classList.toggle('mood-harmed', EARNED_TRAITS.some(trait => player.traits.includes(trait)));
+  const shownTraits = player.traits.join('|');
+  if (shownTraits !== paintedTraits) {
+    paintedTraits = shownTraits;
+    $('#player-traits').innerHTML = player.traits.map(t => `<span class="${EARNED_TRAITS.includes(t) ? 'trait-earned' : ''}">${esc(t)}</span>`).join('');
+  }
   $('#player-focus').style.setProperty('--shirt', player.color);
   $('#player-focus').style.setProperty('--skin', player.skin);
   $('#player-focus').style.setProperty('--hair', player.hair);
@@ -211,11 +221,11 @@ function acceptState(next: LifeState) {
 function renderPeople() {
   if (!state) return;
   const people = state.residents.filter(r=>r.role==='npc');
-  const signature = JSON.stringify(people.map(r=>[r.id,r.name,r.mood,r.activity?.label,r.relationships.player,r.color,r.skin,r.hair]));
+  const signature = JSON.stringify(people.map(r=>[r.id,r.name,r.mood,r.activity?.label,r.relationships.player,r.color,r.skin,r.hair,r.hurt>HURT_THRESHOLD]));
   if (signature === lastPeopleSignature) return;
   lastPeopleSignature = signature;
   $('#people-count').textContent = `${people.length} HOUSEMATES`;
-  $('#people-list').innerHTML = people.map(r=>`<button class="person-row" data-person="${esc(r.id)}">${portrait(r,'small')}<span><strong>${esc(r.name)}</strong><small>${esc(r.activity?.label ?? r.mood)}</small></span><span class="relationship-mini ${r.relationships.player < 0 ? 'strained' : ''}" title="${esc(relationName(r.relationships.player ?? 0))}">${icon('heart')}</span></button>`).join('');
+  $('#people-list').innerHTML = people.map(r=>`<button class="person-row" data-person="${esc(r.id)}">${portrait(r,'small')}<span><strong>${esc(r.name)}</strong><small>${esc(r.activity?.label ?? r.mood)}</small></span>${r.hurt>HURT_THRESHOLD?`<span class="hurt-badge" title="Injured because of you">Hurt</span>`:''}<span class="relationship-mini ${r.relationships.player < 0 ? 'strained' : ''}" title="${esc(relationName(r.relationships.player ?? 0))}">${icon('heart')}</span></button>`).join('');
   $('#people-list').querySelectorAll<HTMLButtonElement>('[data-person]').forEach(b=>b.addEventListener('click',()=>select('resident',b.dataset.person!)));
 }
 
@@ -257,7 +267,7 @@ function renderContext() {
     $('#context-panel').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(b=>b.addEventListener('click',e=>{ void command({kind:'use',objectId:o.id,action:b.dataset.action as ActivityKind,queue:e.shiftKey},true); }));
   } else {
     const r = target as LifeResident;
-    $('#context-panel').innerHTML = `<div class="context-heading">${portrait(r)}<div><small>YOUR HOUSEMATE</small><h2>${esc(r.name)}</h2></div><button id="close-context" class="quiet-button" aria-label="Close interactions">${icon('close')}</button></div><div class="trait-list">${r.traits.map(t=>`<span>${esc(t)}</span>`).join('')}</div><div class="relationship-line">${icon('heart')}<span id="context-relation">${esc(relationName(r.relationships.player??0))}</span></div><div class="relationship-track"><div id="relationship-progress" style="width:${((r.relationships.player??0)+100)/2}%"></div></div><div class="social-actions">${(['chat','share','compliment','apologize','insult'] as const).map(a=>`<button class="social-action ${a==='insult'?'risky':''}" data-social="${a}" title="${esc(actionInfo[a].hint)}">${icon(actionInfo[a].icon)}${esc(actionInfo[a].name)}</button>`).join('')}</div><form id="talk-form" class="talk-form"><label for="talk-input">Or say something of your own</label><div class="talk-input-wrap"><input id="talk-input" maxlength="500" autocomplete="off" placeholder="What’s on your mind?"/><button id="send-talk" type="submit" aria-label="Send message">${icon('arrow')}</button></div><small id="talk-hint">Say it your way. They will remember.</small></form>`;
+    $('#context-panel').innerHTML = `<div class="context-heading">${portrait(r)}<div><small>YOUR HOUSEMATE</small><h2>${esc(r.name)}</h2></div><button id="close-context" class="quiet-button" aria-label="Close interactions">${icon('close')}</button></div><div class="trait-list">${r.traits.map(t=>`<span>${esc(t)}</span>`).join('')}</div>${r.hurt>HURT_THRESHOLD?`<p class="hurt-note">${esc(r.name)} is hurt and does not want you near them.</p>`:''}<div class="relationship-line">${icon('heart')}<span id="context-relation">${esc(relationName(r.relationships.player??0))}</span></div><div class="relationship-track"><div id="relationship-progress" style="width:${((r.relationships.player??0)+100)/2}%"></div></div><div class="social-actions">${(['chat','share','compliment','apologize','insult'] as const).map(a=>`<button class="social-action ${a==='insult'?'risky':''}" data-social="${a}" title="${esc(actionInfo[a].hint)}">${icon(actionInfo[a].icon)}${esc(actionInfo[a].name)}</button>`).join('')}</div><form id="talk-form" class="talk-form"><label for="talk-input">Or say something of your own</label><div class="talk-input-wrap"><input id="talk-input" maxlength="500" autocomplete="off" placeholder="What’s on your mind?"/><button id="send-talk" type="submit" aria-label="Send message">${icon('arrow')}</button></div><small id="talk-hint">Say it your way. They will remember.</small></form>`;
     $('#context-panel').querySelectorAll<HTMLButtonElement>('[data-social]').forEach(b=>b.addEventListener('click',e=>{ void command({kind:'social',targetId:r.id,action:b.dataset.social as 'chat',queue:e.shiftKey},true); }));
     $('#talk-form').addEventListener('submit', e=>{
       e.preventDefault();
