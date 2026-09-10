@@ -13,3 +13,10 @@ test('a delayed NPC proposal is discarded after combat eligibility changes',asyn
 test('enemy encounter movement never requests a model proposal',()=>{let requests=0;const{simulation,controller,scene}=fixture(()=>requests++);scene.actors[0].enemy=true;simulation.reactions=()=>['rowan'];controller.enabled=true;controller.observe();assert.equal(requests,0)});
 test('a configured but unhealthy narrator remains explicitly retryable',async()=>{const{controller}=fixture(async()=>({ok:true,json:async()=>({provider:{provider:'claude-cli',available:false}})}));await controller.connect();assert.equal(controller.enabled,true)});
 test('browser fetch is invoked without a controller receiver',async()=>{let receiver;const{controller}=fixture(function(){receiver=this;return Promise.resolve({ok:true,json:async()=>({provider:{provider:'claude-cli',available:true}})})});await controller.connect();assert.equal(receiver,undefined);assert.equal(controller.enabled,true)});
+test('player proposals use the screen projection while NPC proposals keep their own view',async()=>{
+ const requests=[];const f=fixture(async(path,options)=>{const body=JSON.parse(options.body);requests.push({path,view:body.view});return{ok:true,json:async()=>({decision:{action:{actor:body.view.actor.id,ops:[]}}})}});
+ const playerView=()=>({actor:{id:'player'},entities:[{id:'visible-far-edge'}]});
+ const controller=new WorldController({simulation:f.simulation,runtime:f.runtime,snapshot:()=>f.scene,fetcher:f.controller.fetcher,playerView});
+ await controller.submit('look at the far edge');controller.enabled=true;controller.queued.add('rowan');controller.pump();await controller.idle();
+ assert.deepEqual(requests[0].view.entities,[{id:'visible-far-edge'}]);assert.equal(requests[1].view.actor.id,'rowan');assert.equal(requests[1].view.entities,undefined);
+});
