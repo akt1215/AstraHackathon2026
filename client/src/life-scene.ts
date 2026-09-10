@@ -5,6 +5,7 @@ import {
 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { createCinematicAtmosphere, applyScannedMaterial } from './life-materials';
+import { createTrail, record, sample, SNAP_DISTANCE, STRIDE_PER_METRE, type MotionTrail } from './locomotion';
 import { STATIC_FIXTURES } from '../../shared/life/layout';
 import type { LifeObject, LifeResident, LifeScene, LifeSceneHooks, LifeState, LifeTheme } from '../../shared/life-types';
 
@@ -17,7 +18,7 @@ const PALETTES: Record<LifeTheme, Palette> = {
 interface PersonRig {
   root: TransformNode; hips: TransformNode; head: TransformNode; arms: TransformNode[];
   forearms: TransformNode[]; legs: TransformNode[]; shins: TransformNode[];
-  book: Mesh; cup: Mesh; brush: Mesh; ring: Mesh; phase: number;
+  book: Mesh; cup: Mesh; brush: Mesh; ring: Mesh; phase: number; trail: MotionTrail;
   model?: TransformNode; clips?: AnimationGroup[]; clip?: string; bones?: Map<string, TransformNode>;
 }
 interface PropRig { root: TransformNode; signature: string }
@@ -86,6 +87,9 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
   let focused = '';
   let cameraMode: 'orbit' | 'follow' = 'orbit';
   let clock = 0;
+  let simClock = { elapsedMs: 0, at: 0, speed: 1 };
+  /** Simulation time now, carried forward from the last report so playback never waits on a poll. */
+  const simElapsedNow = (): number => simClock.elapsedMs + (performance.now() - simClock.at) * simClock.speed;
   let disposed = false;
   let lastDown = { x: 0, y: 0 };
   const frameTimes: number[] = [];
@@ -671,7 +675,7 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     ring.position.y = .025; ring.parent = root; ring.material = material('player-ring', '#f8e3ae'); ring.isPickable = false;
     (ring.material as PBRMaterial).emissiveColor = c3('#dfbb74').scale(.32); ring.isVisible = resident.role === 'player';
     torso.receiveShadows = true;
-    const rig: PersonRig = { root, hips, head, arms, forearms, legs, shins, book, cup, brush, ring, phase: index * 2 };
+    const rig: PersonRig = { root, hips, head, arms, forearms, legs, shins, book, cup, brush, ring, phase: index * 2, trail: createTrail() };
     const fallbackMeshes = hips.getChildMeshes();
     const file = index === 1 ? 'casual-woman.glb' : index === 2 ? 'hoodie-man.glb' : 'casual-man.glb';
     const characterLoad = SceneLoader.ImportMeshAsync('', '/life-assets/', file, scene).then(result => {
@@ -770,12 +774,32 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       if (target) facing = Math.atan2(resident.x - target.x, resident.z - target.z);
     }
     const weight = 1 - Math.exp(-dt * 12);
-    rig.root.position.x += (x - rig.root.position.x) * weight;
-    rig.root.position.z += (z - rig.root.position.z) * weight;
+    // Server positions land about every 250ms. Chasing them exponentially converges well inside
+    // one poll window and then stalls until the next, which reads as a stutter. Pursue at the
+    // simulation's own walking pace instead, with a catch-up term, so motion stays continuous.
+    // A posed activity pins the body to the furniture, so ease to it. Otherwise play the recorded
+    // trail back slightly delayed, which keeps every frame between two reported positions.
+    const posed = x !== resident.x || z !== resident.z;
+    const played = posed ? null : sample(rig.trail, simElapsedNow());
+    const goalX = played ? played.x : x, goalZ = played ? played.z : z;
+    const dx = goalX - rig.root.position.x, dz = goalZ - rig.root.position.z;
+    const gap = Math.hypot(dx, dz);
+    let travelled = 0;
+    if (gap > SNAP_DISTANCE) { rig.root.position.x = goalX; rig.root.position.z = goalZ; }
+    else if (played) {
+      travelled = gap;
+      rig.root.position.x = goalX; rig.root.position.z = goalZ;
+    } else if (gap > 1e-4) {
+      travelled = Math.min(gap, gap * weight);
+      rig.root.position.x += dx / gap * travelled;
+      rig.root.position.z += dz / gap * travelled;
+    }
     rig.root.position.y += (y - rig.root.position.y) * weight;
     rig.hips.rotation.x += (tilt - rig.hips.rotation.x) * weight;
     rig.root.rotation.y = mixAngle(rig.root.rotation.y, facing, 1 - Math.exp(-dt * 8));
-    rig.phase += dt * (walking ? 8.5 : 1.7) * (current?.speed === 0 ? 0 : 1);
+    // Advancing the stride on a timer makes the feet skate whenever the body is not moving at
+    // exactly that rate. Drive it from distance actually covered so the contact stays planted.
+    rig.phase += walking ? travelled * STRIDE_PER_METRE : dt * 1.7 * (current?.speed === 0 ? 0 : 1);
     const stride = walking ? Math.sin(rig.phase) * .55 : 0;
     rig.hips.position.y = walking ? Math.abs(Math.sin(rig.phase)) * .045 : Math.sin(rig.phase) * .009;
     rig.hips.rotation.z = walking ? Math.sin(rig.phase) * .025 : 0;
@@ -803,7 +827,8 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       const name = walking ? 'Walk' : kind && ['paint', 'water', 'coffee', 'eat'].includes(kind) ? 'Interact' : kind && ['chat', 'share', 'compliment'].includes(kind) ? 'Wave' : 'Idle_Neutral';
       if (rig.clip !== name) { rig.clips.forEach(group => group.stop()); rig.clips.find(group => group.name === name)?.start(true); rig.clip = name; }
       const active = rig.clips.find(group => group.name === rig.clip);
-      if (active) active.speedRatio = current?.speed === 0 ? 0 : walking ? 1.2 : .72;
+      // Match the clip to the pace actually being travelled rather than a fixed ratio.
+      if (active) active.speedRatio = current?.speed === 0 ? 0 : walking ? Math.min(2.2, .35 + travelled / Math.max(dt, 1e-4) * .62) : .72;
     }
     rig.ring.isVisible = resident.id === focused || resident.role === 'player';
     rig.ring.rotation.y += dt * .12;
@@ -884,6 +909,12 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
       const residentIds = new Set(state.residents.map(r => r.id));
       for (const [id, person] of people) if (!residentIds.has(id)) { person.root.dispose(false, false); people.delete(id); }
       state.residents.forEach((resident, index) => { if (!people.has(resident.id)) people.set(resident.id, makePerson(resident, index)); });
+      // Key each reported position to the simulation clock, not arrival time. A resident advances
+      // exactly 1.7m per simulated second, but a 250ms poll catches two or three ~100ms server
+      // ticks, so wall-clock samples arrive 0.51m, 0.51m, 0.35m apart. Interpolating those on
+      // arrival time reproduces that pulse; interpolating on sim time is exactly linear.
+      simClock = { elapsedMs: state.elapsed * 1000, at: performance.now(), speed: state.speed };
+      for (const resident of state.residents) { const rig = people.get(resident.id); if (rig) record(rig.trail, simClock.elapsedMs, resident.x, resident.z); }
       void prepareFirstFrame();
       if (!focused || !residentIds.has(focused)) focused = state.residents.find(r => r.role === 'player')?.id ?? state.residents[0]?.id ?? '';
     },
