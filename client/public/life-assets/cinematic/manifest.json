@@ -1,0 +1,231 @@
+{
+  "generator": "art/blender/build_cinematic_kit.py",
+  "blender": "5.2.1 LTS",
+  "coordinateSystem": "glTF right-handed Y-up; local front -Z; floor-centered origin",
+  "assets": [
+    {
+      "file": "sofa.glb",
+      "nominalFootprint": [
+        2.8,
+        1.1
+      ],
+      "bounds": {
+        "min": [
+          -1.401300072669983,
+          -0.00395483523607254,
+          -0.6328606605529785
+        ],
+        "max": [
+          1.4012964963912964,
+          1.0231025218963623,
+          0.5349999666213989
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.fabric.linen",
+        "cinematic.fabric.sage",
+        "cinematic.fabric.terracotta",
+        "cinematic.seam.linen",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 5,
+      "triangles": 39456,
+      "notes": "Three separate bulging seat/back cushions, piped seams, shaped arms, geometric folds and draped throw. Seat height ~0.57m; back +Z.",
+      "sha256": "dfe714c4e12797a592afe2f2858eff4a504ccb0e528154201e6897a9d812de3e"
+    },
+    {
+      "file": "bed.glb",
+      "nominalFootprint": [
+        2.2,
+        2.1
+      ],
+      "bounds": {
+        "min": [
+          -1.100000023841858,
+          0.0,
+          -1.0329999923706055
+        ],
+        "max": [
+          1.100000023841858,
+          1.2200000286102295,
+          1.0399999618530273
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.fabric.linen",
+        "cinematic.fabric.sage",
+        "cinematic.fabric.terracotta",
+        "cinematic.seam.linen",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 6,
+      "triangles": 37784,
+      "notes": "Local width2.2 depth2.1; renderer rotates +pi/2. Mattress top~0.65, duvet~0.72. Geometric bedding folds and hanging blanket edges.",
+      "sha256": "29fb3e5d0f9c242919af0ba23848181fdad9a4a3de9415a7898e1980f7b6f755"
+    },
+    {
+      "file": "dining-table.glb",
+      "nominalFootprint": [
+        1.9,
+        1.2
+      ],
+      "bounds": {
+        "min": [
+          -0.949999988079071,
+          -0.0008549690246582031,
+          -0.5985000133514404
+        ],
+        "max": [
+          0.949999988079071,
+          1.0601799488067627,
+          0.5985000133514404
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ivory",
+        "cinematic.fabric.linen",
+        "cinematic.fabric.terracotta",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 5,
+      "triangles": 8136,
+      "notes": "Table only; instantiate chairs separately at authoritative static fixture coordinates. Tabletop0.86m.",
+      "sha256": "df39411ca76bcd36743334caaf44f3653296c3425c128d6b14d6412ab78bfabd"
+    },
+    {
+      "file": "dining-chair.glb",
+      "nominalFootprint": [
+        0.58,
+        0.54
+      ],
+      "bounds": {
+        "min": [
+          -0.2849999964237213,
+          -0.0014602690935134888,
+          -0.26499998569488525
+        ],
+        "max": [
+          0.2849999964237213,
+          0.9965835809707642,
+          0.32200002670288086
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.fabric.sage",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 3,
+      "triangles": 5028,
+      "notes": "Seat0.55m; back+Z, faces-Z. Rounded seat, splayed tapered legs, curved steam-bent back rails.",
+      "sha256": "6d99cd2156e5cb403ae16512018c4aa6745387b6161a169fc3998aa238e455cf"
+    },
+    {
+      "file": "kitchen.glb",
+      "nominalFootprint": [
+        3,
+        0.69
+      ],
+      "bounds": {
+        "min": [
+          -1.5,
+          0.004999998956918716,
+          -0.39499998092651367
+        ],
+        "max": [
+          1.5,
+          2.2230000495910645,
+          0.3499999940395355
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.ceramic.ivory",
+        "cinematic.ceramic.ochre",
+        "cinematic.ceramic.sage",
+        "cinematic.metal.brass",
+        "cinematic.metal.iron",
+        "cinematic.paint.sage",
+        "cinematic.stone.cream",
+        "cinematic.wood.oak",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 9,
+      "triangles": 25740,
+      "notes": "Front-Z; rotate pi aroundY for world+Z front. Includes shaker joinery, open sink, gooseneck tap and floating shelves. Counter0.9m. Handles exceed front envelope by0.05m.",
+      "sha256": "d37c367611eb2434deba684f09976551bc948325e8cdeb49b5fabe93e6690b97"
+    },
+    {
+      "file": "window-frame.glb",
+      "nominalFootprint": [
+        3.02,
+        0.27
+      ],
+      "bounds": {
+        "min": [
+          -1.5099999904632568,
+          -0.01250000111758709,
+          -0.19500000774860382
+        ],
+        "max": [
+          1.5099999904632568,
+          2.4000000953674316,
+          0.07999999821186066
+        ]
+      },
+      "pivot": [
+        0,
+        0,
+        0
+      ],
+      "front": "-Z",
+      "units": "meters",
+      "materials": [
+        "cinematic.metal.brass",
+        "cinematic.metal.iron",
+        "cinematic.stone.cream",
+        "cinematic.wood.walnut"
+      ],
+      "meshCount": 4,
+      "triangles": 3380,
+      "notes": "Floor-centered at sill base; renderer positions at window opening bottom. 3.02m wide\u00d72.4m high. Open panes intentionally receive renderer city view/glazing.",
+      "sha256": "aebb89e2ce0c4d0d9c58652193ca7f783ce8e8500b21f399fd2aa11cbdca73a6"
+    }
+  ]
+}

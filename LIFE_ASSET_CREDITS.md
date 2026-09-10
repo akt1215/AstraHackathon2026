@@ -26,3 +26,9 @@ DM Sans and Manrope are bundled locally through Fontsource under the SIL Open Fo
 - https://fontsource.org/fonts/manrope
 
 The life client does not load fonts from a third-party server at runtime.
+
+## Original cinematic furniture
+
+The six models under `client/public/life-assets/cinematic/` are original procedural geometry created for this project, with reproducible source scripts and `.blend` files in `art/blender/`. No third-party meshes, image maps, characters, paid libraries, or Blender add-ons are embedded in these GLBs. Runtime scanned textures retain their separate Poly Haven source and license records.
+
+The kit includes a piped upholstered sofa, layered bed and duvet, planked dining table, curved-back chair, shaker kitchen cabinetry with an open sink, and a steel/wood window frame. Source material colors, roughness, and metalness are authored directly. Source, exact bounds, pivots, material names, hashes, and verification commands are documented in `art/blender/README.md` and `client/public/life-assets/cinematic/manifest.json`. Studio preview images in `art/blender/previews/` are renders of the exported GLBs, not gameplay captures.
