@@ -1,0 +1,142 @@
+{
+  "license": "CC0-1.0",
+  "licenseSource": "https://polyhaven.com/license",
+  "retrieved": "2026-09-10",
+  "maps": {
+    "normal": "OpenGL tangent-space",
+    "arm": "R=ambient occlusion, G=roughness, B=metallic"
+  },
+  "assets": [
+    {
+      "id": "wood_floor",
+      "source": "https://polyhaven.com/a/wood_floor",
+      "authors": {
+        "Dimitrios Savva": "All"
+      },
+      "dimensionsMillimeters": [
+        1699.9996900558472,
+        1699.9996900558472
+      ],
+      "resolution": "1k"
+    },
+    {
+      "id": "rough_linen",
+      "source": "https://polyhaven.com/a/rough_linen",
+      "authors": {
+        "colormass": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "dimensionsMillimeters": [
+        270.7081392676629,
+        271.29998803138733
+      ],
+      "resolution": "1k"
+    },
+    {
+      "id": "plastered_wall",
+      "source": "https://polyhaven.com/a/plastered_wall",
+      "authors": {
+        "Amal Kumar": "All"
+      },
+      "dimensionsMillimeters": [
+        1999.9996423721313,
+        1999.9996423721313
+      ],
+      "resolution": "1k"
+    },
+    {
+      "id": "brick_wall_001",
+      "source": "https://polyhaven.com/a/brick_wall_001",
+      "authors": {
+        "Rob Tuytel": "Processing",
+        "Dimitrios Savva": "Photography"
+      },
+      "dimensionsMillimeters": [
+        3000,
+        3000
+      ],
+      "resolution": "1k"
+    }
+  ],
+  "environmentSource": "https://polyhaven.com/a/rooftop_night",
+  "files": [
+    {
+      "path": "wood_floor/albedo.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_diff_1k.jpg",
+      "bytes": 734493,
+      "sha256": "2a1c07687b6dbb214c4b9213739c6d92d425f1f0fc8ab3ac157f105d78240789"
+    },
+    {
+      "path": "wood_floor/normal.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_nor_gl_1k.jpg",
+      "bytes": 423303,
+      "sha256": "452247f0d0d1b7fc7f8324ff3b6ed60bcc6de1405f4284eeb8d9bce90d4939c2"
+    },
+    {
+      "path": "wood_floor/arm.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_arm_1k.jpg",
+      "bytes": 447855,
+      "sha256": "a84d9457fa35a76cf8a41da8bcef55387230c6b236819de878799585eda76059"
+    },
+    {
+      "path": "rough_linen/albedo.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_diff_1k.jpg",
+      "bytes": 835801,
+      "sha256": "04897d7611d7390ddf5b2c6f7273f448dfc48341fdbd1f4f207fa30b331d7f57"
+    },
+    {
+      "path": "rough_linen/normal.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_nor_gl_1k.jpg",
+      "bytes": 916843,
+      "sha256": "e2402166d1a489f7414814e69e1836ab672aa24e30bec2d41fea356f81687e53"
+    },
+    {
+      "path": "rough_linen/arm.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_arm_1k.jpg",
+      "bytes": 1191393,
+      "sha256": "e1ca6b51ed62834063253e08f8f2e23836aa00d72675b960ddd8e608d9f0c7e6"
+    },
+    {
+      "path": "plastered_wall/albedo.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall/plastered_wall_diff_1k.jpg",
+      "bytes": 617080,
+      "sha256": "73312ebb6eabc8e0a55addd8a82a8924bcd1e717b9488a887cc77f14b6ea554e"
+    },
+    {
+      "path": "plastered_wall/normal.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall/plastered_wall_nor_gl_1k.jpg",
+      "bytes": 1072153,
+      "sha256": "504e1f7baf4b68714c64b6670e7954bebe99efe31c49f7ce5a2089e4b76023b5"
+    },
+    {
+      "path": "plastered_wall/arm.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall/plastered_wall_arm_1k.jpg",
+      "bytes": 624131,
+      "sha256": "cd927f46fa85b7e5c1a9747b90258c505529d7347d5f4dd356ae0ed2bda34d4f"
+    },
+    {
+      "path": "brick_wall_001/albedo.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_diffuse_1k.jpg",
+      "bytes": 574381,
+      "sha256": "6a1233ec0186703de830354d89f122991e61e67fb67e0846c7eaf6c5aefea902"
+    },
+    {
+      "path": "brick_wall_001/normal.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_nor_gl_1k.jpg",
+      "bytes": 295279,
+      "sha256": "8afbe3919308b168a6b7235fe7b930f670cfffa1a34de39ee790d55c9d7bda09"
+    },
+    {
+      "path": "brick_wall_001/arm.jpg",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brick_wall_001/brick_wall_001_arm_1k.jpg",
+      "bytes": 123384,
+      "sha256": "8e6ab4cecd82c4305c9511065b0795bd579df89df8364a76a7359c1278bed38d"
+    },
+    {
+      "path": "environment.hdr",
+      "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/rooftop_night_1k.hdr",
+      "bytes": 1624479,
+      "sha256": "ae4b5c0ce8ad9e69be22ab485197bec8e90a40205e76ea1a1f491c74fb554500"
+    }
+  ]
+}
