@@ -1,203 +1,379 @@
-# Grounded actions and characters shaped by play
+# The DM Is Real — grounded play, a character that develops through choices
 
-Status: proposal for review; no implementation approved or performed.
-Date: 2026-09-10.
+Status: revised design proposal. Akito requested design revision first; implementation
+is not authorized by this document. Date: 2026-09-10.
 
-## Context and verified baseline
+## 1. Ownership, scope and promise
 
-The game concept and gameplay ideas in the supplied notes originate with Akito;
-Austin typed those notes. Akito's proposed changes ask for deterministic commands,
-richer world and character state,
-direct interaction, a clear initial goal, better presentation, and actions constrained
-by the character's history. This changes the current promise that any invented action
-or object is legal. The proposed promise is: **your choices shape who you become,
-and that changes how you can solve a persistent world.**
+**The whole game concept and the gameplay ideas in the supplied September 10 notes
+are Akito's. Austin typed those notes.** The specific scenario, thresholds and rule
+choices below are recommendations for Akito's review, not claims about what he approved.
 
-The supplied checkout contains only HANDOFF.md, IMPLEMENTED.md, README.md, SPEC.md,
-package.json, and package-lock.json. It has no server, client, shared code, or tests.
-The package files describe a TypeScript/Vite/Node/Zod stack but cannot run a game alone.
-The matching reference source is in ../ai-game-engine-plan, inspected at HEAD
-61fddc46e9a4465f4537bf5d5c0c833adcdb9fb6. Its six corresponding root files are locally
-deleted; this checkout's README is modified and the other five files are untracked.
-These changes predate this review and must be preserved. Source inspection is not
-runtime verification; the supplied claim of 28 passing tests was not re-run.
+**Promise:** Explore a world with understandable rules. Solve its problems in your own
+way. What you actually do shapes your character, opening some actions and limiting others.
 
-Verified reference execution path: client/src/main.ts dispatches movement directly
-or free text through client/src/api.ts; server/index.ts routes movement or a model
-turn through server/astra.ts; shared/schema.ts validates the scene; shared/session.ts
-applies it; server/store.ts saves it; the client animates and reconciles its snapshot.
+Preserve free-text intent, generated art and dialogue, persistent consequences, and
+character development through play. Add direct interaction, authoritative gameplay
+commands, explicit object/character state, and one goal visible from the beginning.
+Remove unrestricted conjuring and automatic quest proliferation from the first version.
 
-| Feedback | Existing mechanism | Actual gap |
+The model interprets intent, proposes supported actions, writes characters and narration,
+and creates visual assets. The engine owns legality, costs, outcomes and persistence.
+Player creativity operates through the world's rules; typing a desired outcome cannot
+make it true. Determinism means the same state, accepted commands and random seed produce
+the same state changes. Model wording and interpretation need not be identical.
+
+**Design work in this revision:** revise PLAN.md only; leave README.md, SPEC.md,
+IMPLEMENTED.md and HANDOFF.md as reference-build documents until implementation changes
+what exists. No game code, dependency changes or runtime claims are part of this revision.
+
+## 2. What the source review established
+
+This checkout contains PLAN.md, the six supplied documents/manifests, and no shared,
+server or client source. Package manifests alone cannot run the game. Source was read
+in the adjacent `../ai-game-engine-plan` reference repository during this conversation;
+its reported test results and provider performance were not independently re-run.
+
+The observed path is client input → client API → server movement/model turn → schema
+validation → session reducer → saved session → client animation and reconciliation.
+
+| Area | Existing reference mechanism | Change needed |
 | --- | --- | --- |
-| Deterministic commands | Nine animation verbs and a reducer | No gameplay legality/cost resolver; the model chooses effects |
-| More world state | Coordinates, tiles, tokens, conditions, inventory | No unified object location/ownership or interaction contract; scene tokens replace room contents |
-| Character development | Stats, moves, conditions, reputation, transcript | No structured behavioral evidence or history-shaped eligibility |
-| Direct interaction | Walking bypasses the model; clicking a token drafts text | Picking up, using, dropping and opening lack deterministic routes |
-| Clear goal | Several opening quests; Chronicle/Evolve add more | No primary objective or engine-checked victory condition |
-| Sound and UI | Audio manifest, file playback, procedural fallback, panels | Assess presentation and feedback quality before replacing these systems |
+| Commands | Nine visual verbs; model supplies effects | Gameplay rules that validate action intent before effects exist |
+| Objects | Room tokens plus a separate inventory array | One identity and one location/owner for each object |
+| Persistence | Scene and Evolve can replace room tokens | Commands change entities; omitted entities remain unchanged |
+| Direct controls | Walking bypasses the model; token clicks draft text | Click/keyboard pickup, use and unlock through the same resolver as text |
+| Character | Stats, learned moves, conditions and reputation | Structured behavioral evidence and visible eligibility rules |
+| Goals | Opening quests; Chronicle/Evolve add quests | One engine-checked objective with multiple solutions |
+| Presentation | Overworld, battle stage, audio manifest and fallback | One overworld surface for this demo; contextual controls and event-linked feedback |
 
-Reference anchors: shared/schema.ts:4, :54, :137, :151, :216;
-shared/session.ts:27, :145, :208, :220, :234; shared/prompts.ts:9, :52;
-server/index.ts:52, :199; client/src/main.ts:143, :226.
+Source anchors in the adjacent reference: `shared/schema.ts:4`, `:20`, `:54`, `:216`;
+`shared/session.ts:208`, `:233`, `:250`, `:287`; `server/index.ts:52`, `:199`;
+`client/src/main.ts:143`, `:215`. These are source observations, not runtime verification.
 
-## Proposed scope and rules
+## 3. The first playable experience
 
-Keep free text for intent, conversation and creative combinations. Both text and
-direct controls resolve through the same gameplay commands and permission checks.
-The model proposes supported actions and dialogue; the engine owns state transitions.
-Deterministic means identical state, accepted command and random seed yield identical
-results. It does not require identical model prose or guaranteed success on every action.
+### One goal, two solutions
 
-### Command vocabulary
+Proposed setting: a drowned cathedral, two connected rooms and an exit threshold.
+Opening objective, visible before the first action: **Rescue Edda and leave the cathedral.**
+No countdown in this demo. Exploration should not silently consume a rescue deadline.
 
-| Layer | Commands | Authority and checks |
+| Place | Objects and people | Purpose |
 | --- | --- | --- |
-| Player movement | move | Reachable path, bounds, collision, movement budget |
-| Observation/social | inspect, talk | Visibility, reachable/valid target; model supplies dialogue |
-| Inventory | pick_up, drop, use, equip | Object exists, one owner/location, range, capacity, compatible use |
-| Fixtures | open, close, unlock | Reach, fixture state, matching key or learned capability |
-| Conflict | attack, defend, flee | Target, range, resources, character commitments; engine resolves outcome |
-| Learned abilities | ability | Registered ability ID with validated target, cost and effects |
-| World authoring | spawn, destroy, transform, set_state | Model proposals restricted to allowed templates and typed transitions |
+| Entrance hall | Visible cell key, potion, keeper's charm, keeper, wounded scout | Learn pickup/use; offer two optional acts of help |
+| Crypt | Edda's locked cell, exit gate, manual winch, speaking tube to gatekeeper | Rescue; choose a physical or social exit |
+| Outside threshold | Arrival marker | Check that player and Edda have both escaped |
 
-Spawn and destroy are privileged world operations, not unrestricted player powers.
-A player can destroy a destructible object through a permitted attack or tool action.
-Conjuring requires an earned ability, approved template, valid location and resource cost.
-No arbitrary property patch or model-supplied damage bypasses the resolver.
-The existing nine verbs remain visual output generated from accepted events.
-For the first demo, implement only move, inspect, pick_up, drop, use, talk and unlock;
-add conflict commands only if the agreed demonstration needs them. The first earned
-capability extends a registered talk interaction, so it needs no separate ability command.
+Every fixture and item has a registered interaction. Decorative scenery is visually
+quieter and does not imply an interaction that the engine cannot perform. Seed uses
+this validated layout and interaction graph; generated names/art/dialogue can vary.
+For this first scenario, generation cannot remove the key or invent an unsolvable lock.
 
-### Authoritative state
+Two routes share the rescue but diverge at the exit:
 
-- Entity: stable ID, kind, template/art ID, typed state, supported interactions,
-  and exactly one location: room/cell, owner/container, or destroyed.
-- World: version, current room, entity registry, room terrain/connectivity,
-  objective, event sequence and saved random state. Persist unvisited-room entities.
-- Character: existing health/resources/stats plus equipment, registered abilities,
-  commitments, structured behavioral evidence and derived tendencies.
-- NPCs: the same entity identity, health and location model, plus relationships,
-  relevant witnessed event IDs and dialogue state. No second independent HP copy.
-- Objective: one primary goal, visible next step, explicit completion predicate,
-  and active/completed/failed state. First-demo candidate: rescue a captive and leave.
+- **Physical route, always available to a living rescued Edda:** pick up the key,
+  unlock her cell, use the winch to latch the exit gate open, and walk out with her.
+  No trait, potion, charm return or model call is required. The winch stays latched.
+- **Social route, earned through conduct:** return the keeper's charm, heal the scout,
+  and release Edda. These distinct choices develop a compassionate commitment and
+  unlock Reassure. Use Reassure at the speaking tube; the gatekeeper opens the gate.
+  The model voices the exchange; the engine checks the ability and opens the gate.
 
-Transfer the same key entity from cell to inventory on pickup; never create an
-inventory copy while leaving its world counterpart. Omitted entities stay present.
-Apply validated commands against a draft, then commit the full transaction. A failed
-batch changes neither entities nor resources. Requests carry an ID and expected state
-version: retrying a pickup must not duplicate it, and stale turns cannot undo walking.
-Serialize direct commands, model turns and evolution through the same session boundary.
-Evolution cannot replace room tokens or bypass these rules.
+The physical route is the guaranteed mechanical solution. The social route demonstrates
+that behavior creates a new option; it is not a required kindness checklist. Optional
+help never appears as three new quests. Hints explain nearby affordances without
+spoiling the social ability before it emerges.
 
-### Interaction and feedback
+Edda follows deterministically after release: follow the player's accepted path through
+open passages, stop at blocked passages, and use the same room-transition checks.
+If attacked while alive, Edda flees one reachable step, becomes afraid and pauses
+following; fear takes precedence over following. After release, the ordinary registered
+talk option “Offer escort” restores following when adjacent. It works without a model,
+grants no care evidence and does not erase the attack from history. This also handles
+a frightened captive released later. The exit crossing places both outside when she
+is alive, released and following within one cell. Otherwise show “Edda is not with you yet.” Completion requires both outside.
+Dead Edda is an explicit failed objective with restart available, never a silent softlock.
 
-Click/tap a key to walk into reach and pick it up; show the action before committing.
-Keyboard interaction uses a nearby-object prompt. Clicking a locked door uses a held
-matching key, or explains the missing requirement. No typing is necessary for these.
-Automatic pickup on walking over an item is an alternative to confirm, not assumed.
+### A normal interaction
 
-Show the primary goal immediately, contextual actions near the selected object,
-inventory, and short action receipts. No automatic new side quests in the first demo;
-Chronicle summarizes and Evolve updates consequences without adding objectives.
-Tie pickup/unlock/success sounds to accepted events, never speculative model prose.
-Polish contrast, selection, motion and audio levels before optional new art.
+Hover/focus on the key shows “Pick up.” Click/tap it or press E while it is the selected
+nearby target: walk to a reachable adjacent cell, then transfer it to inventory. The key
+vanishes from the floor, appears in the pack, and a short pickup sound plays.
+Click the cell lock: use the matching carried key, open the cell and update the objective
+to “Leave with Edda.” The key is not consumed. Neither action needs typed narration.
 
-### Character development through behavior
+The approach and interaction are separate commands. If the target changes while walking,
+arrival rechecks it; a failed interaction keeps the completed walk but consumes no item.
+Walking over an item does not automatically collect it. Destructive or hostile actions
+require an explicit action selection, never the default click on a person.
 
-Do not infer permanent morality from one kind action. Protecting someone and attacking
-an aggressor can be consistent. Recommended rule: repeated, distinct resolved choices
-develop a named trait or commitment; the engine then checks its specific restriction.
-Example: Mercy prevents executing a surrendered person, while allowing defense.
-Display its evidence and restriction. Offer an intentional story event for changing a
-commitment if character change is part of the approved design.
+## 4. Command contract
 
-For the first demo, use three distinct engine-recorded qualifying choices to reveal
-one trait and one ability. This threshold is a proposed tuning value. Count each
-resolved event once; repeated talk, failed commands, and the same reversible pickup/drop
-must not farm progression. A model may name/describe a trait or suggest an ability;
-it cannot grant arbitrary effect code or directly overwrite the character profile.
-Novel narrative choices without a supported structured event have no automatic score
-in this first version. This limits emergence but makes the demonstrated rule testable.
+Both text and UI controls submit intent to one resolver. The model cannot apply a second,
+more permissive set of rules. Every denied action returns a visible reason and, where
+possible, a valid alternative. A request is not evidence that the action happened.
 
-Proposed qualifying choices for the rescue scenario: return the keeper's stolen charm
-with use (item_transferred to its recorded owner), give a carried potion to a wounded
-scout with use (aid_given after health actually increases), and release the captive
-with unlock (captive_released after the matching lock opens). Each event records actor,
-beneficiary, object and originating command IDs and qualifies only once. Together these
-reveal Merciful and enable Reassure, a talk option that lets the rescued guide lead the
-group through a guarded exit. Its permission and resulting exit state are engine-owned;
-the model writes the exchange. Verify the rescue-and-exit objective through these flags.
-These choices and the capability are proposed content requiring scenario approval.
+### First-version player vocabulary
 
-## Implementation sequence after approval
+| Command | Required intent | Engine rule and result |
+| --- | --- | --- |
+| `move` | Destination cell/exit | Server verifies reachable path and occupancy; updates position and follower |
+| `inspect` | Visible entity | Returns known properties/interactions; does not reveal hidden solutions or traits |
+| `pick_up` | Item ID | Adjacent, portable, reachable, on ground; transfers the same ID to player |
+| `drop` | Held item ID, destination | Adjacent reachable walkable ground; transfers that ID from player to room |
+| `use` | Held item or fixture ID, optional target | Executes a registered interaction: heal, return owned charm, latch winch |
+| `talk` | Reachable NPC/tube, utterance or option | Model writes dialogue; a registered conversation option controls any state change |
+| `unlock` | Lock ID, key ID | Adjacent lock, matching held key; opens that fixture and emits its scenario event |
+| `attack` | Target ID | Checks range, target, commitments and fixed attack definition; applies damage/event |
+| `ability` | Earned ability ID, target ID | Checks eligibility, target and cost; runs registered effects such as Reassure |
 
-Paths below are proposed target paths in this checkout; the source is currently absent.
-Confirm event-day rebuild versus an authorized source transfer before implementation.
-The reference HANDOFF says pre-event product code cannot be the event submission;
-this review does not independently verify competition rules.
+For the demo, attacks are single overworld strikes with fixed damage and deterministic
+NPC reactions; no separate battle screen, initiative system or dice-dependent puzzle
+outcomes. NPC reaction rules must be declared in the fixture data: noncombatants flee
+to a reachable cell if able and become afraid; no model-supplied retaliatory damage.
+Attack is included to make character restrictions observable, not merely prose.
+Proposed fixture values: orthogonal interaction/attack reach of one cell, attack damage
+2 HP, noncombatant maximum 6 HP, scout starting at 2 HP, potion healing 4 HP up to the
+maximum and consumed only on a successful heal. The cell key is reusable. Inventory
+has no capacity limit in this demo. Characters at zero HP cannot act or follow; an
+attack on a dead target is rejected. These are tuning values, not model decisions.
 
-1. Freeze the opening goal, interaction behavior and commitment policy. Write failing
-   command/state tests. Files: shared/schema.ts, shared/commands.test.ts,
-   shared/session.test.ts. Existing reference tests inform cases, not assumed permission
-   to copy pre-event code.
-2. Build the entity registry and command resolver; connect request validation,
-   persistence, atomic transitions and direct interaction. Files: shared/commands.ts,
-   shared/session.ts, server/index.ts, server/store.ts, client/src/api.ts.
-3. Feed legal actions, relevant state and rejection reasons to the model; validate
-   proposals and narrate committed outcomes. Files: shared/prompts.ts, server/astra.ts,
-   shared/fake.ts. Buffer outcome narration until commit; use UI feedback while waiting.
-   Include state and contract versions in cache keys so cached scenes cannot restore
-   stale entities. Inject deterministic random seeds on the server for replay only.
-4. Add the one goal, direct-object UI and one behavior-to-ability path. Files:
-   shared/character-development.ts, client/src/main.ts, client/src/overworld.ts,
-   client/src/ui.ts and the client stylesheet. Keep both text and buttons on the resolver.
-5. Exercise the demo, polish existing audio and update README.md, SPEC.md,
-   IMPLEMENTED.md and HANDOFF.md to describe observed behavior. Do not redesign art
-   or add a general physics engine before the core loop passes.
+Ordinary walking, pickup, valid key use and the winch always succeed when their checks
+pass. If chance is added later, the engine alone supplies seeded rolls, recorded with
+the resolved event. No client-supplied roll or model-written damage amount is authoritative.
 
-Working chunks are committed separately after validation and approval of implementation;
-pre-existing changes are excluded. Any new branch gets its own worktree immediately.
+### World operations and visual verbs
 
-## Verification and adversarial cases
+`spawn`, `destroy`, `transform` and typed state transitions are internal world operations.
+They execute only as consequences of registered commands or validated scenario setup.
+The model may propose an allowed template and placement within a setup budget; it cannot
+call destroy to bypass attack rules or declare an objective complete. Required puzzle
+fixtures are not destructible in this scenario. Optional destructible props use registered
+health/material rules. Drop cannot place a required item out of reach.
 
-Success: the initial goal is visible; the player clicks a key, sees it leave the floor
-and enter inventory, unlocks a door, makes qualifying choices, gains an explained
-capability, completes the goal, and reloads into exactly that persisted state.
+Conjuring, equipment slots, crafting, throwing, general fire propagation and additional
+combat commands are later extensions. Creating artwork does not create a gameplay entity
+or grant a new ability. The nine reference animation verbs remain a separate visual
+vocabulary; the engine derives animations from committed events.
 
-- Observe each behavior test fail before implementing its rule. Exercise unreachable
-  movement, wrong keys, duplicate pickup, stale state versions, insufficient resources,
-  unknown IDs, invalid spawn locations and partial-batch failure.
-- Same starting state, commands and random seed reproduce state and event results.
-  Save/load preserves entity locations, objective progress and behavioral evidence.
-- For the limited demo, all three named choices emit their qualifying events exactly
-  once; Reassure is unavailable before the threshold, works afterward, and persists.
-  If combat is included, a kind act alone does not ban attacks; defense remains legal
-  under Mercy; execution of a surrendered target is blocked through text and controls.
-- Dropping/picking up repeatedly does not develop a trait. A denied action cannot earn
-  progress, consume inventory, or trigger a success sound or narration.
-- Attempt bypasses through model effects, raw scene token replacement, cached output,
-  Chronicle and Evolve. Reject all authoritative mutations outside the command resolver.
-- Test fresh save, empty inventory and unavailable model. Walking/pickup/unlock still
-  work without a model; model-dependent dialogue fails visibly or uses marked fixtures.
-- Once implemented, run focused tests, npm run typecheck, npm test, npm run build;
-  exercise the built app on its actual serving URL. Inspect all changed screens in
-  supported themes and at desktop and <=480px widths. Listen to sounds and mute behavior.
-- Audit nearby TODO/FIXME/SOON placeholders; verify generated SVGs render as well as
-  parse. No export round-trip is needed unless this work adds an export.
+### Text examples
 
-## Decisions needing review
+- “I grab the key” → `pick_up(key)` with exactly the click interaction's checks.
+- “I summon the exit key” → denied unless a supported earned ability permits it.
+- “I reassure the gatekeeper” → `ability(reassure, tube)` if learned; otherwise ordinary
+  dialogue with no gate-opening effect and an explanation of the missing capability.
+- An ambiguous action → select a target/interpretation before any consequential command.
+- An unsupported clever combination → explain the missing interaction and offer supported
+  options. Do not claim arbitrary emergent physics in the demo.
 
-1. Scope: design only, or implementation following approval?
-2. Character constraints: scoped commitments with an explicit change path (recommended),
-   or strict history-driven locks? Strict locks need named conditions and exceptions.
-3. First goal and scenario: captive rescue is a proposal, not an accepted requirement.
-4. Interaction: click-to-approach-and-pick-up (recommended), or pickup on walking over it?
-5. Build location and source policy: rebuild in this checkout, or a permitted transfer
-   from the reference repository?
+## 5. State the engine remembers
 
-Self-review: a bigger verb list alone would preserve arbitrary outcomes; a kindness
-score alone would hide arbitrary restrictions; a state registry alone would still be
-overwritten by scene/Evolve patches. The proposal therefore requires one resolver for
-all mutations, visible commitment rules, and a small opening scenario. The bounded
-first version intentionally cannot implement every imaginable object interaction.
+| Record | Minimum authoritative fields |
+| --- | --- |
+| World | ID, schema/state version, current room, terrain/connections, entity registry, objective, event sequence, random state if used |
+| Entity | Stable ID, template/kind, art ID, typed state, supported interactions, exactly one location; optional immutable rightful-owner ID |
+| Location | Room and cell, or owner/container ID, or destroyed; never two simultaneously |
+| Person | Entity ID, HP/max HP, stance, conditions, capabilities, relationships, relevant witnessed event IDs |
+| Player development | Qualifying evidence IDs, derived tendencies, active commitment IDs, earned ability IDs and provenance |
+| Objective | Primary goal, next-step ID, active/completed/failed, explicit predicates |
+| Event | Sequence and command ID, actor/targets, before/after facts, semantic tags, witnesses, random result if any |
+
+Example serialized entity before pickup:
+
+```json
+{"id":"cell_key","kind":"item","template":"iron_key","art_id":"key_iron",
+ "location":{"room":"hall","x":3,"y":4},
+ "state":{"opens":"edda_cell"},"interactions":["inspect","pick_up"]}
+```
+
+Coordinates are zero-based grid cells; fixture bounds and reachable placements are
+validated at setup. Example: `cell_key` starts at that hall cell. After pickup its location is
+`owner: player`; its former cell has no key. After drop it is back in a room/cell.
+After reload it has the same identity and location. An omitted entity in model output
+stays where it is. Rooms outside the current view retain their state.
+
+One entity record owns an NPC's HP; portraits, map tokens and dialogue read it. Inventory
+and equipment views are derived from current possession, not independently mutable copies.
+The charm's `rightful_owner_id` identifies the keeper independently of `location.owner`;
+pickup changes possession but never the fact used to validate its return. Mechanical
+conditions are typed; evocative labels can be display text without inventing mechanics.
+A saved event log is not a substitute for the current structured world state.
+
+All mutations, including world evolution, use the same session boundary. Validate a
+command against a draft, then commit its entire state change and events together. Denial
+changes neither resources nor developmental evidence. Requests carry a command ID and
+expected state version: duplicates return the original result; stale requests revalidate
+or reject, never overwrite newer walking or inventory changes.
+
+Persist the committed state before reporting durable success. Model responses and caches
+carry the relevant state/contract version and are revalidated before use. Reload preserves
+ownership, goal progress, follower state, commitments and ability provenance. Chronicle
+summarizes; Evolve proposes supported consequences. Neither replaces whole room contents,
+resurrects removed objects, grants unrestricted abilities, or adds primary objectives.
+
+## 6. How actions develop the character
+
+### Evidence → tendency → commitment and capability
+
+Development follows resolved choices, not a selected class or spendable skill points.
+The model explains the emerging character using actual evidence; mechanical changes come
+from a bounded, inspectable rule catalog. This first version does not promise that the
+model can invent arbitrary new mechanics safely.
+
+Proposed demonstration rule: **three distinct acts of care** reveal a commitment called
+Merciful and the ability Reassure. Count only these scenario events, each once:
+
+1. Return the unique charm to its recorded owner (`property_returned`).
+2. Give the potion to the wounded scout and actually increase HP (`aid_given`).
+3. Open Edda's cell and release her (`captive_released`).
+
+The first two choices are optional; completion by the physical route needs no commitment.
+A single action never determines the character's entire morality. Repeated talk, refused
+commands, repeated pickup/drop and healing injury inflicted by the player cannot farm
+care evidence. A prior deliberate attack on a nonhostile person prevents this demo's
+care commitment from forming; show that fact rather than letting three errands erase it.
+Redemption requires a designed story rule and is deferred, not silently invented by prose.
+
+Reveal: “You returned what was stolen, tended the injured, and freed a prisoner.”
+Then show both consequences together:
+
+- **New action — Reassure:** persuade the gatekeeper to open the exit through a registered
+  compassionate appeal. One application; repeating it cannot grant rewards again.
+- **Commitment — Mercy:** you cannot deliberately harm a nonhostile or surrendered person.
+  Defense against a hostile attacker remains allowed. “Kind” does not mean “incapable of combat.”
+
+The restriction is a recommendation for review. It is narrower than a blanket kindness
+score disabling all violence. Display the forming commitment and its rule before the
+third qualifying choice; after it forms, disabled harmful actions explain why and suggest
+talk or leave. The player does not choose a skill-tree node or buy a trait.
+
+Apply commitments to an action's registered semantic effects, not its command spelling:
+attack, a harmful item, an ability or an internal destroy request cannot bypass Mercy by
+using another route. Actor intent and target stance used for the check come from validated
+command definitions and current world state, not the model's convenient relabeling.
+
+For the first demo, an acquired commitment remains for that run. Deliberately breaking
+or evolving it is later narrative content; until designed, no hidden “break oath” loophole.
+Future tendencies can include resourcefulness, intimidation and deception, but are not
+advertised as implemented. The compassionate example demonstrates the mechanism, not a
+claim that kindness is the only valid way to play.
+
+## 7. Model turn and presentation
+
+### Authoritative turn flow
+
+1. Direct controls produce a command immediately; text asks the model for a supported
+   interpretation using visible context, legal actions and relevant authoritative state.
+2. Resolver validates intent, applies registered rules, records evidence, and commits.
+3. UI animates committed events and updates the objective/inventory immediately.
+4. The model narrates those outcomes and supplies dialogue. World-changing dialogue
+   options must resolve before the narration describes their success.
+
+Outcome narration begins after validation. A loading cue may appear earlier, but the DM
+must not announce a pickup, death or opened gate that the engine later rejects. Reject
+unsupported world proposals with structured reasons available to the next interpretation.
+Use short deterministic action receipts when the model is unavailable; keep supported
+movement, interactions, commitment rules and both exit routes functional when the model
+provider is unavailable, using deterministic dialogue receipts. This requires the local
+application server to remain running; browser-to-server disconnection is a separate
+unavailable state, with actions disabled and a reconnect message, not local speculative play.
+
+The model sees current room entities, held items, relevant NPC memories, the objective,
+character commitments and a bounded history summary. The server can select referenced
+state from other rooms. Do not depend on the model remembering an omitted object's
+coordinates from a long transcript, or expose hidden NPC knowledge in player inspection.
+
+### One clear screen
+
+- Top: primary goal and current step, persistent throughout play.
+- Center: readable grid, player/NPCs/items, selected target and reachable interaction cue.
+- Bottom: concise narration, contextual actions, and free-text input.
+- Side panel/drawer: inventory and “Who you are becoming,” with evidence and consequences.
+
+Keyboard: arrows/WASD move when text input is not focused; E uses the selected nearby
+interaction. Multiple nearby objects require selection instead of silently choosing one.
+Click/tap uses the same semantics. Mobile places panels in drawers and keeps controls
+within a <=480px viewport. Focus, target cues and disabled-action reasons must be readable.
+
+Pickup, unlock, rejection, trait reveal and objective completion have distinct short
+sounds tied to committed events. Speech takes priority over music; mute covers speech,
+SFX and ambience. Optional art polish uses a consistent palette, silhouettes and strong
+floor/wall value contrast. Generated art cannot alter collision or item capabilities.
+No new art-generation dependency is required to prove the game loop.
+
+## 8. Delivery order after design approval
+
+This is an implementation outline, not authorization to start writing product code.
+Target files do not yet exist in this checkout. Before implementation, settle the source
+policy: event-day rebuild versus permitted reuse. HANDOFF.md describes restrictions on
+pre-event product code; this design review did not independently verify event rules.
+
+| Order | Deliverable | Proposed files | Success case |
+| --- | --- | --- | --- |
+| 1 | Scenario fixture, entities and commands | `shared/schema.ts`, `shared/scenario.ts`, `shared/commands.ts`, their tests | Physical rescue route works with no model |
+| 2 | Persistence and request boundary | `shared/session.ts`, `server/index.ts`, `server/store.ts`, API tests | Retry/reload cannot duplicate or restore picked-up items |
+| 3 | Direct play and objective | `client/src/api.ts`, `main.ts`, `overworld.ts`, `ui.ts`, stylesheet | Click key → unlock → follower → winch → both escape |
+| 4 | Character development | `shared/character-development.ts`, scenario rules/tests, character panel | Optional care opens social route and enforces Mercy |
+| 5 | Model interpretation, dialogue and art | `shared/prompts.ts`, `server/astra.ts`, `shared/fake.ts` | Text obeys identical rules; narration matches committed events |
+| 6 | Presentation and observed-behavior docs | Audio/UI files, README/SPEC/IMPLEMENTED/HANDOFF | Built app is readable, audible, playable and accurately described |
+
+Use one overworld renderer. Defer freeform world generation, extra quests, broader combat,
+crafting, general physics, companion personalities, commitment reversal and optional new
+art. Edda's simple following is necessary rescue behavior, not a general companion system.
+Keep implementation chunks separately validated and committed; any newly created branch
+gets its own worktree. Preserve the pre-existing changes in this checkout.
+
+## 9. Verification and design challenge
+
+This revision is verified by checking scenario reachability and consistency of the written
+rules, plus an independent design review. No runtime tests can validate an unbuilt design.
+Implementation must first observe the following behavior tests fail, then make them pass:
+
+- **Physical route:** fresh character, no kindness evidence, model provider disabled, local server running → pick up key,
+  unlock, latch winch, escort Edda outside → objective complete.
+- **Social route:** three distinct qualifying choices → named evidence, Reassure and Mercy;
+  use Reassure at tube → gate opens → both escape without using winch.
+- **Identity boundary:** one kind act does not disable attacks; formed Mercy blocks harm
+  to a nonhostile/surrendered person through every supported command, permits attacks
+  on hostiles, and survives reload. Player-caused injury cannot generate care evidence.
+- **Ownership:** key disappears from floor on pickup; same ID reappears on legal drop;
+  duplicate request, room revisit, cached narration and Evolve cannot recreate it.
+- **Failure:** wrong key, unreachable object, stale request and unsupported effect produce
+  reasons without consuming resources or earning evidence. A completed approach walk
+  remains if the interaction subsequently fails. Edda's death visibly fails the goal.
+- **Authority:** text cannot conjure the key, relabel a target hostile, grant Reassure,
+  complete the goal, or apply damage directly. Failed proposals never receive success audio.
+- **Recovery:** drop the key in each permitted location; it remains retrievable. Leave Edda
+  behind a closed passage; return and reunite. Attack her without killing her, offer escort,
+  and finish via the physical route without receiving care credit. Save/load at each route
+  step reproduces it. A disconnected browser shows unavailable status without mutation.
+
+Once built, run focused tests, typecheck, the full suite and production build; exercise
+both routes on the built app's actual URL. Inspect every changed screen in supported
+themes and at desktop/mobile widths; listen to effects, speech balance and mute. Audit
+TODO/FIXME/SOON placeholders and render generated SVGs. Export round-trip is irrelevant
+unless an export is added. Provider functionality/latency must be measured on the actual
+required runtime before making demo performance claims.
+
+Self-review challenges addressed:
+
+- A longer verb list can leave outcomes arbitrary → engine rules own every mutation.
+- The original rescue example forced kindness to finish → independent winch route added.
+- A kindness score can forbid morally consistent defense → scoped, visible commitment.
+- Three errands can masquerade as unrestricted emergent character development → explicitly
+  bounded evidence catalog for the demo, generated explanation, no arbitrary mechanical invention.
+- Prose-first streaming can tell a false outcome → committed receipts before outcome narration.
+- Optional model/world generation can remove the only key → validated scenario topology,
+  protected essential fixtures and engine-controlled spawning.
+
+## 10. Review points for Akito
+
+The requested design revision is complete; these recommendations remain open to change:
+
+1. Opening scenario: rescue Edda in the cathedral, physical winch route plus earned social route.
+2. Character rule: visible Mercy commitment after three distinct care choices, blocking harm
+   to nonhostile/surrendered people while allowing defense; reversal deferred.
+3. Interaction: click/E to approach and act, with deliberate targeting for harmful actions.
+
+Approving this proposal would settle the game design. Implementation is a separate next step.
