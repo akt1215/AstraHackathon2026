@@ -6,6 +6,7 @@ import {
 import '@babylonjs/loaders/glTF';
 import { createCinematicAtmosphere, applyScannedMaterial } from './life-materials';
 import { createTrail, record, sample, SNAP_DISTANCE, STRIDE_PER_METRE, type MotionTrail } from './locomotion';
+import { HURT_THRESHOLD } from '../../shared/life/acts';
 import { STATIC_FIXTURES } from '../../shared/life/layout';
 import type { LifeObject, LifeResident, LifeScene, LifeSceneHooks, LifeState, LifeTheme } from '../../shared/life-types';
 
@@ -18,7 +19,7 @@ const PALETTES: Record<LifeTheme, Palette> = {
 interface PersonRig {
   root: TransformNode; hips: TransformNode; head: TransformNode; arms: TransformNode[];
   forearms: TransformNode[]; legs: TransformNode[]; shins: TransformNode[];
-  book: Mesh; cup: Mesh; brush: Mesh; ring: Mesh; phase: number; trail: MotionTrail;
+  book: Mesh; cup: Mesh; brush: Mesh; ring: Mesh; bandages: Mesh[]; phase: number; trail: MotionTrail;
   model?: TransformNode; clips?: AnimationGroup[]; clip?: string; bones?: Map<string, TransformNode>;
 }
 interface PropRig { root: TransformNode; signature: string }
@@ -669,13 +670,23 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     const book = box('open-book', [.37, .055, .25], [0, .91, -.35], cream, hips); book.rotation.x = -.45;
     const cup = cylinder('held-ceramic-cup', .062, .13, [0, -.3, -.04], cream, forearms[1]);
     const brush = cylinder('held-paintbrush', .01, .3, [0, -.27, -.1], wood, forearms[1]); brush.rotation.x = Math.PI / 2;
+    // A visible injury. The dressing hangs off the head node, which tracks whichever body is in
+    // use; a forearm wrap would float, because an imported character's arms are driven by bones
+    // rather than by these joints.
+    const bandageMat = material('gauze-dressing', '#f6f1e7', .1);
+    const cheekPatch = box('cheek-dressing', [.105, .042, .018], [.058, .04, -.088], bandageMat, head, false);
+    cheekPatch.rotation.z = .34;
+    const browPatch = box('brow-dressing', [.075, .03, .016], [-.045, .085, -.086], bandageMat, head, false);
+    browPatch.rotation.z = -.5;
+    const bandages = [cheekPatch, browPatch];
     book.isVisible = false; cup.isVisible = false; brush.isVisible = false;
+    for (const patch of bandages) patch.isVisible = false;
     for (const mesh of root.getChildMeshes()) { mesh.metadata = { residentId: resident.id }; mesh.isPickable = true; }
     const ring = MeshBuilder.CreateTorus('controlled-resident-ring', { diameter: .64, thickness: .025, tessellation: 48 }, scene);
     ring.position.y = .025; ring.parent = root; ring.material = material('player-ring', '#f8e3ae'); ring.isPickable = false;
     (ring.material as PBRMaterial).emissiveColor = c3('#dfbb74').scale(.32); ring.isVisible = resident.role === 'player';
     torso.receiveShadows = true;
-    const rig: PersonRig = { root, hips, head, arms, forearms, legs, shins, book, cup, brush, ring, phase: index * 2, trail: createTrail() };
+    const rig: PersonRig = { root, hips, head, arms, forearms, legs, shins, book, cup, brush, ring, bandages, phase: index * 2, trail: createTrail() };
     const fallbackMeshes = hips.getChildMeshes();
     const file = index === 1 ? 'casual-woman.glb' : index === 2 ? 'hoodie-man.glb' : 'casual-man.glb';
     const characterLoad = SceneLoader.ImportMeshAsync('', '/life-assets/', file, scene).then(result => {
@@ -822,6 +833,15 @@ export function createLifeScene(canvas: HTMLCanvasElement, hooks: LifeSceneHooks
     }
     rig.head.rotation.y = walking ? 0 : Math.sin(rig.phase * .35) * .08;
     rig.head.rotation.x = kind === 'read' ? .25 : kind === 'sleep' ? -.05 : Math.sin(rig.phase * .7) * .025;
+    // Being hurt should read from across the room: dressings, a guarded stoop and a slower walk.
+    const injured = resident.hurt > HURT_THRESHOLD;
+    for (const patch of rig.bandages) patch.isVisible = injured;
+    if (injured) {
+      const guard = Math.min(1, resident.hurt / 60);
+      rig.hips.rotation.x += (.16 * guard - rig.hips.rotation.x) * weight;
+      rig.head.rotation.x += .1 * guard;
+      rig.arms[0]!.rotation.z = .07 + .22 * guard;
+    }
     rig.book.isVisible = kind === 'read'; rig.cup.isVisible = !rig.model && (kind === 'coffee' || kind === 'eat' || kind === 'water'); rig.brush.isVisible = !rig.model && kind === 'paint';
     if (rig.clips) {
       const name = walking ? 'Walk' : kind && ['paint', 'water', 'coffee', 'eat'].includes(kind) ? 'Interact' : kind && ['chat', 'share', 'compliment'].includes(kind) ? 'Wave' : 'Idle_Neutral';
