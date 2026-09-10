@@ -25,6 +25,7 @@ const shapes: Record<string, string> = {
   pause: '<path d="M8 5v14M16 5v14"/>',
   fast: '<path d="m3 5 9 7-9 7Zm9 0 9 7-9 7Z"/>',
   camera: '<path d="M3 7h5l2-3h4l2 3h5v13H3Z"/><circle cx="12" cy="13" r="4"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3v.1"/>',
   reset: '<path d="M3 5v6h6M4 10a8 8 0 1 1 1 8"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
@@ -40,7 +41,7 @@ const icon = (name: string, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 
 const esc = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const themes: Record<LifeTheme, { name: string; place: string; description: string; icon: string }> = {
-  loft: { name: 'City loft', place: 'NEW YORK · GOLDEN HOUR', description: 'Warm light, familiar streets, a place to call yours.', icon: 'home' },
+  loft: { name: 'City loft', place: 'NEW YORK · THE LOFT', description: 'Warm light, familiar streets, a place to call yours.', icon: 'home' },
   lantern: { name: 'Lantern house', place: 'A HOUSE BETWEEN WORLDS', description: 'An original spirit-world home, softly lit by lanterns.', icon: 'leaf' },
   comic: { name: 'Skyline studio', place: 'LIFE IN FULL COLOR', description: 'An original comic-book city with a bolder everyday.', icon: 'sun' },
 };
@@ -70,7 +71,9 @@ $('#life-app').innerHTML = `
     <div class="top-tools"><button id="camera-button" class="icon-button glass" title="Switch to follow camera" aria-label="Switch to follow camera">${icon('camera')}</button><button id="appearance-button" class="icon-button glass" title="Switch interface theme" aria-label="Switch interface theme">${icon('moon')}</button><button id="help-button" class="icon-button glass" title="How to play" aria-label="How to play">${icon('help')}</button></div>
   </header>
   <section id="world-menu" class="world-menu glass hidden" aria-label="Choose a world preset"><div class="panel-heading"><span>Somewhere new</span><small>AUTHORED WORLD PRESETS</small></div>${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="world-option"><div class="world-thumbnail ${id}">${icon(t.icon)}</div><span><strong>${t.name}</strong><small>${t.description}</small></span>${icon('arrow')}</button>`).join('')}<p>Same life. A different atmosphere. Your relationships and memories stay with you.</p></section>
-  <div class="place-caption"><span id="place-label">NEW YORK · GOLDEN HOUR</span><h1>Make yourself<br><em>at home.</em></h1><p id="place-subtitle">Little moments make a life.</p></div>
+  <div class="place-caption"><span id="place-label">NEW YORK · THE LOFT</span><h1>Make yourself<br><em>at home.</em></h1><p id="place-subtitle">Little moments make a life.</p></div>
+  <button id="interface-button" class="interface-button glass" aria-label="Hide interface" title="Hide interface · H">${icon('eye')}<span>Hide interface</span><kbd>H</kbd></button>
+  <button id="restore-interface" class="restore-interface glass" aria-label="Show interface">${icon('eye')}<span>Show interface</span><kbd>H</kbd></button>
   <section class="life-feed" aria-label="Recent moments"><div class="feed-heading"><span class="live-dot"></span> LIFE, LATELY</div><div id="recent-events"><p class="feed-empty">Your story is just beginning.</p></div></section>
   <section class="resident-panel glass" aria-label="Your resident"><div class="resident-header"><button id="player-focus" class="portrait portrait-player" aria-label="Focus on your resident"><span class="avatar-face"></span></button><div class="resident-name"><small>YOUR RESIDENT</small><h2 id="player-name">You</h2><span id="player-mood" class="mood">Feeling at home</span></div><button id="household-button" class="quiet-button" aria-label="Activities in your home" title="Activities in your home">${icon('home')}</button><button id="resident-focus" class="quiet-button" aria-label="Focus camera on your resident" title="Find your resident">${icon('target')}</button></div><div id="needs" class="needs">${(['hunger','energy','social','fun'] as const).map(n=>`<div class="need"><div class="need-label">${icon(n==='hunger'?'food':n==='social'?'heart':n)}<span>${n[0].toUpperCase()+n.slice(1)}</span><b id="need-value-${n}">—</b></div><div class="need-track"><div id="need-bar-${n}" class="need-fill ${n}"></div></div></div>`).join('')}</div><div class="activity-line"><span id="activity-icon">${icon('leaf')}</span><div><strong id="activity-label">Taking it all in</strong><div class="activity-track"><div id="activity-progress"></div></div></div><button id="cancel-activity" class="quiet-button" aria-label="Cancel activity" title="Cancel activity">${icon('close')}</button></div><div id="activity-queue" class="activity-queue"></div></section>
   <div class="bottom-center"><div id="input-hint" class="controls-hint"><span>Click to walk</span><i>·</i><span>WASD to move</span><i>·</i><span>Drag to orbit</span></div><div id="save-status" class="save-status">${icon('check')} Your life saves automatically</div></div>
@@ -97,7 +100,18 @@ let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let movePending = false;
 let persistenceError: string | null = null;
 let polls = 0;
+let visualsReady = false;
+let controlsReady = false;
 const canvas = $<HTMLCanvasElement>('#world-canvas');
+for (const element of $('#life-app').children) if (element instanceof HTMLElement && element.id !== 'loading') element.inert = true;
+$('#life-app').setAttribute('aria-busy', 'true');
+function revealLife() {
+  if (!state || !visualsReady || controlsReady) return;
+  controlsReady = true;
+  for (const element of $('#life-app').children) if (element instanceof HTMLElement) element.inert = false;
+  $('#life-app').setAttribute('aria-busy', 'false');
+  $('#loading').classList.add('hidden');
+}
 let scene: ReturnType<typeof createLifeScene>;
 try {
   scene = createLifeScene(canvas, {
@@ -109,6 +123,15 @@ try {
   $('#loading-message').textContent = `The 3D scene could not start: ${error instanceof Error ? error.message : 'WebGL is unavailable.'}`;
   throw error;
 }
+void scene.ready.then(result => {
+  visualsReady = true;
+  revealLife();
+  if (result.degraded) toast('Some visual assets could not load. Your life still works; refresh to retry.');
+}).catch(() => {
+  visualsReady = true;
+  revealLife();
+  toast('The room could not finish loading all visual details. Refresh to retry.');
+});
 
 function toast(message: string) {
   const el = $('#toast'); el.textContent = message; el.classList.remove('hidden');
@@ -116,12 +139,21 @@ function toast(message: string) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 4400);
 }
 function closeContext() { selection = null; contextSignature = ''; $('#context-panel').classList.add('hidden'); $('#people-panel').classList.remove('hidden'); }
-function select(type: 'object' | 'resident', id: string) { selection = { type, id }; contextSignature = ''; $('#world-menu').classList.add('hidden'); renderContext(); }
+function setInterfaceVisible(visible: boolean) {
+  document.body.classList.toggle('interface-hidden', !visible);
+  if (!visible) {
+    closeContext();
+    $('#world-menu').classList.add('hidden');
+    $('#world-button').setAttribute('aria-expanded', 'false');
+    canvas.focus();
+  }
+}
+function select(type: 'object' | 'resident', id: string) { setInterfaceVisible(true); selection = { type, id }; contextSignature = ''; $('#world-menu').classList.add('hidden'); renderContext(); }
 function relationName(value: number) { return value >= 45 ? 'Close friends' : value >= 20 ? 'Getting closer' : value >= 0 ? 'Getting acquainted' : value >= -25 ? 'Some tension' : 'A strained connection'; }
 function portrait(r: LifeResident, size = '') { return `<span class="portrait ${size}" style="--shirt:${esc(r.color)};--skin:${esc(r.skin)};--hair:${esc(r.hair)}"><span class="avatar-face"></span></span>`; }
 
 async function command(cmd: LifeCommand, quiet = false) {
-  if (!state) return false;
+  if (!state || !visualsReady) return false;
   const worldId = state.id;
   pending++;
   try {
@@ -140,7 +172,8 @@ function acceptState(next: LifeState) {
   if (state && next.id !== state.id) { closeContext(); lastEventSignature = ''; lastPeopleSignature = ''; }
   state = next;
   scene.update(next);
-  $('#loading').classList.add('hidden');
+  if (visualsReady) revealLife();
+  else $('#loading-message').textContent = 'Bringing your home to life…';
   const player = next.residents.find(r => r.role === 'player');
   if (!player) return;
   $('#player-name').textContent = player.name;
@@ -250,6 +283,8 @@ document.querySelectorAll<HTMLButtonElement>('[data-speed]').forEach(b=>b.addEve
 $('#world-button').addEventListener('click',()=>{const menu=$('#world-menu'); menu.classList.toggle('hidden'); $('#world-button').setAttribute('aria-expanded',String(!menu.classList.contains('hidden')));});
 document.querySelectorAll<HTMLButtonElement>('[data-theme]').forEach(b=>b.addEventListener('click',()=>{void command({kind:'theme',theme:b.dataset.theme as LifeTheme},true); $('#world-menu').classList.add('hidden'); $('#world-button').setAttribute('aria-expanded','false');}));
 $('#appearance-button').addEventListener('click',()=>{document.body.classList.toggle('dark-ui'); $('#appearance-button').innerHTML=icon(document.body.classList.contains('dark-ui')?'sun':'moon');});
+$('#interface-button').addEventListener('click',()=>setInterfaceVisible(false));
+$('#restore-interface').addEventListener('click',()=>setInterfaceVisible(true));
 $('#camera-button').addEventListener('click',()=>{cameraMode=cameraMode==='orbit'?'follow':'orbit'; scene.setCamera(cameraMode); const label=`Switch to ${cameraMode==='orbit'?'follow':'orbit'} camera`; $('#camera-button').setAttribute('aria-label',label); $('#camera-button').title=label; toast(cameraMode==='follow'?'Following your resident':'Orbit camera · drag to look around');});
 $('#player-focus').addEventListener('click',()=>scene.focusResident('player'));
 $('#resident-focus').addEventListener('click',()=>scene.focusResident('player'));
@@ -277,14 +312,16 @@ $('#reset-button').addEventListener('click',()=>{
 const heldKeys=new Set<string>();
 document.addEventListener('focusin',e=>{if((e.target as HTMLElement).closest('input,textarea,button,dialog'))heldKeys.clear();});
 window.addEventListener('keydown',e=>{
-  if ((e.target as HTMLElement).closest('input,textarea,button,dialog') || document.querySelector('dialog[open]')) return;
+  if ((e.target as HTMLElement).closest('input,textarea,select,dialog') || document.querySelector('dialog[open]')) return;
   const key=e.key.toLowerCase();
+  if (key === 'h') { if(!e.repeat)setInterfaceVisible(document.body.classList.contains('interface-hidden')); e.preventDefault(); return; }
+  if(e.key==='Escape'){setInterfaceVisible(true);closeContext();$('#world-menu').classList.add('hidden');$('#world-button').setAttribute('aria-expanded','false');return;}
+  if ((e.target as HTMLElement).closest('button')) return;
   if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {heldKeys.add(key);e.preventDefault();if(!e.repeat)moveOneStep();}
-  if(e.key==='Escape'){closeContext();$('#world-menu').classList.add('hidden');}
 });
 window.addEventListener('keyup',e=>heldKeys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>heldKeys.clear());
 function moveOneStep(){
-  if (!state || movePending || !heldKeys.size || state.speed===0) return;
+  if (!state || !visualsReady || movePending || !heldKeys.size || state.speed===0) return;
   const p=state.residents.find(r=>r.role==='player');if(!p)return;
   let x=0,z=0;
   if(heldKeys.has('w')||heldKeys.has('arrowup'))z-=1;
