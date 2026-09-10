@@ -26,7 +26,7 @@ function emit(w:World,actor:string,kind:string,text:string,location:Point,extra:
 }
 function known(w:World,id:string,target:string){if(id==='player')return;const view=actorView(w,id);if(!view.entities.some(e=>e.id===target)&&!view.knownIssues.some(i=>i.id===target))fail('That target is outside this character’s knowledge.');}
 function guarding(w:World,id:string,gate:Entity):boolean{
- const keeper=w.actors.guard;if(id==='guard'||w.actors[id].permission||keeper.wakefulness==='asleep'||distance(pos(w,'guard'),pos(w,gate.id))>2)return false;
+ const keeper=w.actors.guard;if(id==='guard'||w.actors[id].permission||keeper.hp<=0||keeper.wakefulness==='asleep'||distance(pos(w,'guard'),pos(w,gate.id))>2)return false;
  const keeperPos=pos(w,'guard'), visitor=pos(w,id);
  if(keeper.attention){const focus=keeper.attention;if((focus.x-keeperPos.x)*(visitor.x-keeperPos.x)+(focus.y-keeperPos.y)*(visitor.y-keeperPos.y)<0)return false;}
  return canSee(w,'guard',visitor);

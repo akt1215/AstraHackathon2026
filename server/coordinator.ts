@@ -8,7 +8,7 @@ export interface Runtime {
   interpret(view:ActorView,input:string):Promise<ModelResult>;
   decide(view:ActorView):Promise<ModelResult>;
 }
-export interface ActionRequest {requestId:string;version:number;input?:string;direct?:DirectIntent;}
+export interface ActionRequest {requestId:string;worldId:string;version:number;input?:string;direct?:DirectIntent;}
 export class RequestError extends Error { constructor(message:string,readonly status=400){super(message);} }
 
 export class Coordinator {
@@ -34,6 +34,7 @@ export class Coordinator {
     try{await this.react();}finally{this.busy=false;}
   }
   async act(req:ActionRequest):Promise<ActionResponse> {
+    if(req.worldId!==this.world.id) throw new RequestError('That action belongs to a previous story. Review the current world before acting.',409);
     if(this.busy) throw new RequestError('The world is still responding to your last action.',409);
     const prior=Object.hasOwn(this.world.receipts,req.requestId) ? this.world.receipts[req.requestId] : undefined;
     if(prior) {
@@ -69,8 +70,8 @@ export class Coordinator {
     } finally {this.busy=false;}
   }
   private visibleNewEvents(from:number):WorldEvent[] {
-    const known=new Set(publicState(this.world).events.map(e=>e.id));
-    return this.world.events.slice(from).filter(e=>known.has(e.id));
+    const newIds=new Set(this.world.events.slice(from).map(e=>e.id));
+    return publicState(this.world).events.filter(e=>newIds.has(e.id));
   }
   private async react():Promise<boolean> {
     const phase=this.world.phase;

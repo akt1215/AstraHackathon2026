@@ -11,7 +11,7 @@ const direct=z.discriminatedUnion('kind',[
  z.object({kind:z.enum(['interact','drop']),entity:z.string().min(1).max(80)}).strict(),
  z.object({kind:z.enum(['wait','rest'])}).strict(),
 ]);
-const action=z.object({requestId:z.string().min(1).max(100),version:z.number().int().min(0),input:z.string().trim().min(1).max(1200).optional(),direct:direct.optional()}).strict().refine(v=>!!v.input!==!!v.direct,{message:'Choose either an intention or a direct interaction.'});
+const action=z.object({requestId:z.string().min(1).max(100),worldId:z.string().min(1).max(100),version:z.number().int().min(0),input:z.string().trim().min(1).max(1200).optional(),direct:direct.optional()}).strict().refine(v=>!!v.input!==!!v.direct,{message:'Choose either an intention or a direct interaction.'});
 const fresh=z.object({variant:z.enum(['baseline','tired','asleep']).optional()}).strict();
 const port=Number(process.env.PORT ?? 8787);
 const coordinator=new Coordinator(resolve(process.env.DATA_FILE ?? 'data/session.json'),{info:providerInfo,interpret,decide:decideNpc});

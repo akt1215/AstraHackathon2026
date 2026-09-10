@@ -1,4 +1,5 @@
-import type { ActionResponse, DirectIntent, ProviderInfo, PublicState, WorldEvent } from '../../shared/types';
+import type { ActionResponse, ProviderInfo, PublicState, WorldEvent } from '../../shared/types';
+import { ActionRequests, type PlayerIntent } from './action-requests';
 import './style.css';
 
 const $ = <T extends HTMLElement>(selector: string): T => {
@@ -43,12 +44,19 @@ let muted = localStorage.getItem('dm-muted') === 'true';
 let theme = localStorage.getItem('dm-theme') || 'dark';
 let audioContext: AudioContext | undefined;
 const sounded = new Set<string>();
+const actionRequests = new ActionRequests();
 const input = $<HTMLTextAreaElement>('#intent');
 const turnReceipt = document.createElement('p');
 turnReceipt.className = 'turn-receipt';
 turnReceipt.hidden = true;
 turnReceipt.setAttribute('role', 'status');
 $('#notice').after(turnReceipt);
+const retryButton = document.createElement('button');
+retryButton.type = 'button';
+retryButton.className = 'quiet-button retry-button';
+retryButton.textContent = 'Check previous move';
+retryButton.hidden = true;
+turnReceipt.after(retryButton);
 
 function setNotice(message: string, error = false): void {
   const notice = $('#notice');
@@ -98,6 +106,8 @@ function updateAvailability(): void {
   $('#activity').textContent = !connected ? 'Reconnecting to the world…' : pending || state?.busy ? 'The world is thinking…' : state?.objective.status === 'complete' ? 'You made it through.' : provider?.available ? 'Your move' : textAvailable ? 'Narrator paused · you can retry' : 'Narrator offline · direct play works';
   $('#activity').classList.toggle('thinking', pending || Boolean(state?.busy));
   input.setAttribute('aria-busy', String(pending));
+  retryButton.hidden = !actionRequests.current || pending;
+  retryButton.disabled = locked;
 }
 
 function drawRoom(): void {
@@ -195,6 +205,7 @@ function renderPanels(): void {
 function acceptState(next: PublicState, initial = false): void {
   if (state?.id === next.id && next.version < state.version) return;
   const changed = !state || next.id !== state.id || next.version !== state.version;
+  if (state && state.id !== next.id) actionRequests.clear();
   state = next;
   for (const event of next.events) {
     if (!initial && !sounded.has(event.id)) sound(event);
@@ -207,12 +218,16 @@ function acceptState(next: PublicState, initial = false): void {
   updateAvailability();
 }
 
+class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly busy: boolean) { super(message); }
+}
+
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, body === undefined ? { cache: 'no-store', signal: AbortSignal.timeout(5000) } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const result = await response.json();
   if (!response.ok || result.error) {
     if (result.state) acceptState(result.state);
-    throw new Error(result.error || `The world could not respond (${response.status}).`);
+    throw new ApiError(result.error || `The world could not respond (${response.status}).`, response.status, Boolean(result.state?.busy));
   }
   return result as T;
 }
@@ -236,18 +251,26 @@ async function load(initial = false): Promise<void> {
   }
 }
 
-async function act(payload: { input: string } | { direct: DirectIntent }): Promise<void> {
+async function act(payload: PlayerIntent): Promise<void> {
   if (!state || pending || state.busy || !connected) return;
-  if ('input' in payload && (!provider || provider.provider === 'offline')) {
+  if ('input' in payload && (!provider || provider.provider === 'offline') && !actionRequests.current) {
     setNotice('The narrator is unavailable. Your words are saved in the input; you can still explore with direct controls.', true);
     return;
   }
+  let actionRequest;
+  try { actionRequest = actionRequests.begin(state, payload); }
+  catch (error) { setNotice(error instanceof Error ? error.message : 'Check the previous move first.', true); updateAvailability(); return; }
   primeAudio();
   pending = true;
   setNotice('');
   updateAvailability();
   try {
-    const result = await request<ActionResponse>('/api/action', { requestId: crypto.randomUUID(), version: state.version, ...payload });
+    const result = await request<ActionResponse>('/api/action', actionRequest);
+    actionRequests.clear();
+    if (state && state.id !== actionRequest.worldId) {
+      setNotice('The previous story’s move has resolved. The current story is unchanged.');
+      return;
+    }
     acceptState(result.state);
     if (result.ok && 'input' in payload && input.value.trim() === payload.input) input.value = '';
     setNotice(result.message, !result.ok);
@@ -258,12 +281,20 @@ async function act(payload: { input: string } | { direct: DirectIntent }): Promi
     turnReceipt.classList.toggle('fallback', fallback);
     turnReceipt.hidden = false;
   } catch (error) {
-    setNotice(error instanceof Error ? error.message : 'The action did not finish. Your input is still here.', true);
+    const definitive = error instanceof ApiError && error.status < 500 && !error.busy;
+    if (definitive) actionRequests.clear();
+    const message = error instanceof Error ? error.message : 'The connection was interrupted.';
+    setNotice(`${message}${!definitive && actionRequests.current ? ' The move may already be recorded. Check its result before trying another action; your words are still here.' : ''}`, true);
   } finally {
     pending = false;
     updateAvailability();
   }
 }
+
+retryButton.addEventListener('click', () => {
+  const previous = actionRequests.current;
+  if (previous) void act('input' in previous ? { input: previous.input } : { direct: previous.direct });
+});
 
 function selectEntity(id: string): void {
   selected = id;
@@ -339,6 +370,7 @@ $('#new-dialog').addEventListener('close', async () => {
     const result = await request<{ state: PublicState; provider: ProviderInfo }>('/api/new', { variant: $<HTMLSelectElement>('#variant').value });
     sessionEpoch++;
     state = undefined;
+    actionRequests.clear();
     selected = null;
     provider = result.provider;
     sounded.clear();

@@ -185,3 +185,14 @@ describe('observation grounding',()=>{
   const report=act(r.world,[{kind:'emote',topic:'report',target:'guard',text:'They took medicine.',evidence:[obs.id]}],'companion');expect(report.ok).toBe(false);expect(actorView(report.world,'guard').knownIssues).toHaveLength(0);
  });
 });
+
+describe('incapacitated gatekeeper',()=>{
+ it('cannot physically deny access but cannot grant permission either',()=>{
+  const w=createWorld();at(w,'player',10,4);w.entities.key.location={kind:'held',actor:'player'};
+  expect(act(w,[{kind:'transform',entity:'gate',rule:'open'}]).ok).toBe(false);
+  w.actors.guard.hp=0;
+  const opened=act(w,[{kind:'transform',entity:'gate',rule:'open'}]);expect(opened.ok).toBe(true);expect(opened.world.entities.gate.props.open).toBe(true);
+  expect(act(w,[{kind:'transform',entity:'guard',rule:'permit',target:'player'}],'guard').ok).toBe(false);
+  expect(beginTick(w).phase!.slots).not.toContain('guard');
+ });
+});
