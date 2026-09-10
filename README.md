@@ -1,5 +1,7 @@
 # Tilth
 
+This integration branch adds Notebook World’s bottom dialogue, contextual thoughts and persistent witnessed NPC reactions while retaining Tilth’s world, character creator and weapon animations. See [integration scope, validation and merge instructions](docs/INTEGRATION.md). The object/law sandbox is the next proposed port; it is not integrated yet.
+
 A 2D pixel-art RPG prototype where exploration and learned techniques can lead to AI-generated quests, character changes, and optional awakenings.
 
 The current build takes place in **Cinderwatch**, a volcanic outpost with magma rivers, stone buildings, a forge, and furnished interiors. It runs in the browser with keyboard and touch controls. The full-screen world, menus, and character art use a retro pixel style with richer shading and lighting.
