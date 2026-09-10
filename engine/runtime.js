@@ -6,8 +6,8 @@ import {initialCharacterMemory,restoreCharacterMemory} from './character-memory.
 export const SAVE_KEY='glyph-engine-v1';
 const initial=()=>({version:1,events:[],seen:[],jobs:[],journal:[],offers:[],quests:[],characterMemory:initialCharacterMemory(),activeAwakening:null,lastAwakeningEvidence:0,lastReflectionEvidence:0,profile:{heroClass:'Warrior',gear:'Ashguard armor'}});
 export class GameRuntime {
- constructor({storage=null,clock=()=>Date.now(),id=()=>crypto.randomUUID()}={}){
-  this.storage=storage;this.clock=clock;this.id=id;this.listeners=new Set();this.state=initial();this.storageWarning='';
+ constructor({storage=null,clock=()=>Date.now(),id=()=>crypto.randomUUID(),automaticQuestFollowups=true}={}){
+  this.automaticQuestFollowups=automaticQuestFollowups;this.storage=storage;this.clock=clock;this.id=id;this.listeners=new Set();this.state=initial();this.storageWarning='';
   try{const saved=JSON.parse(storage?.getItem(SAVE_KEY)||'null');if(saved?.version===1&&['events','seen','jobs','journal','offers','quests'].every(k=>Array.isArray(saved[k]))){this.state={...initial(),...saved};const candidate=characterFromProfile(this.state.profile);const fields=['name','heroClass','hairStyle','hairColor','skinColor','clothing','outfitColor','weapon','bio','characterArt'];try{validateContent('character',Object.fromEntries(fields.map(k=>[k,candidate[k]])),[])}catch{this.state.profile={...initial().profile,onboarded:false}};this.state.jobs.forEach(j=>{if(j.status==='running')j.status='failed'});
     this.state.offers=this.state.offers.filter(o=>{try{validateContent('awakening',o.content,this.state.events);return true}catch{return false}});
     this.state.quests=this.state.quests.filter(q=>{try{validateContent('quest',q.content,this.state.events);return true}catch{return false}});
@@ -37,7 +37,7 @@ export class GameRuntime {
   const pending=this.state.offers.some(o=>o.status==='pending')||this.state.jobs.some(j=>j.kind==='awakening'&&['queued','running','failed'].includes(j.status));
   if(!pending&&evidence.length-this.state.lastAwakeningEvidence>=POLICY.awakeningEvidence){this.enqueue('awakening',`awakening:${evidence.length}`,evidence);this.state.lastAwakeningEvidence=evidence.length;}
   if(evidence.length-this.state.lastReflectionEvidence>=POLICY.reflectionEvidence){this.enqueue('journal',`journal:${evidence.length}`,evidence);this.state.lastReflectionEvidence=evidence.length;}
-  if(type==='quest_completed')this.requestQuest('followup');
+  if(type==='quest_completed'&&this.automaticQuestFollowups)this.requestQuest('followup');
   this.changed();return event;
  }
  requestQuest(reason='rowan'){
