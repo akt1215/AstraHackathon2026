@@ -47,6 +47,10 @@ Third-party asset terms remain in [life asset credits](LIFE_ASSET_CREDITS.md), [
 
 Credentials, machine-local saves, dependencies and generated build output are intentionally excluded. Historical handoff and verification documents describe their dated checkout; this README is the archive’s entry point. The recovered unfinished Tilth experiment lives in `experiments/tilth-recovered/`; it is source-verified and testable, but is explicitly not presented as a completed publication.
 
+## Archive maintenance
+
+This public repository is a reviewed snapshot, not the active development source of truth. Continue active work in the private development repository, then publish deliberate updates here after running the relevant tests and builds, scanning for secrets, checking credits and licenses, and updating this README. Keep experiments, local configuration, saves, dependencies, build output and private notes out of the public archive. Label incomplete or recovered work plainly.
+
 ## Check the code
 
 ```sh
