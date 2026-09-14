@@ -1,0 +1,403 @@
+[
+  {
+    "operation": 4,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 636,
+    "timestamp": "2026-09-10T19:06:29.963Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/behavior-traits.test.js"
+    ]
+  },
+  {
+    "operation": 5,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 977,
+    "timestamp": "2026-09-10T19:07:01.732Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/region-world.test.js"
+    ]
+  },
+  {
+    "operation": 7,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 643,
+    "timestamp": "2026-09-10T19:07:44.441Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/behavior-traits.js"
+    ]
+  },
+  {
+    "operation": 8,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 985,
+    "timestamp": "2026-09-10T19:07:48.469Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/region-world.js"
+    ]
+  },
+  {
+    "operation": 11,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 657,
+    "timestamp": "2026-09-10T19:08:30.470Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/behavior-traits.test.js"
+    ]
+  },
+  {
+    "operation": 12,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 664,
+    "timestamp": "2026-09-10T19:08:44.852Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/behavior-traits.js"
+    ]
+  },
+  {
+    "operation": 13,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1000,
+    "timestamp": "2026-09-10T19:08:54.614Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 17,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1016,
+    "timestamp": "2026-09-10T19:09:44.983Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/region-world.test.js"
+    ]
+  },
+  {
+    "operation": 19,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1016,
+    "timestamp": "2026-09-10T19:09:44.983Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 25,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3551,
+    "timestamp": "2026-09-10T19:10:17.602Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "docs/REGIONS_AND_BEHAVIOR_PLAN.md"
+    ]
+  },
+  {
+    "operation": 26,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3556,
+    "timestamp": "2026-09-10T19:10:46.605Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "README.md",
+      "engine/game-ui.js",
+      "engine/runtime.js",
+      "main.js",
+      "style.css"
+    ]
+  },
+  {
+    "operation": 28,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1042,
+    "timestamp": "2026-09-10T19:10:55.218Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-controller.test.js"
+    ]
+  },
+  {
+    "operation": 30,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1042,
+    "timestamp": "2026-09-10T19:10:55.218Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/world-controller.js"
+    ]
+  },
+  {
+    "operation": 31,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3571,
+    "timestamp": "2026-09-10T19:11:45.519Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "main.js"
+    ]
+  },
+  {
+    "operation": 46,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 604,
+    "timestamp": "2026-09-10T19:13:42.432Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-traits.test.js",
+      "server/model-behavior.test.ts",
+      "server/world-api.test.ts"
+    ]
+  },
+  {
+    "operation": 49,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1092,
+    "timestamp": "2026-09-10T19:13:46.268Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/main-regions.test.js"
+    ]
+  },
+  {
+    "operation": 51,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3662,
+    "timestamp": "2026-09-10T19:13:54.135Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "README.md",
+      "style.css"
+    ]
+  },
+  {
+    "operation": 52,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 744,
+    "timestamp": "2026-09-10T19:14:08.505Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/encounters.js"
+    ]
+  },
+  {
+    "operation": 53,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 744,
+    "timestamp": "2026-09-10T19:14:08.505Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-behavior.test.js"
+    ]
+  },
+  {
+    "operation": 55,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1100,
+    "timestamp": "2026-09-10T19:14:44.118Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "main.js"
+    ]
+  },
+  {
+    "operation": 56,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 613,
+    "timestamp": "2026-09-10T19:14:56.376Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "server/model.ts",
+      "server/world-api.ts",
+      "shared/types.ts"
+    ]
+  },
+  {
+    "operation": 57,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 613,
+    "timestamp": "2026-09-10T19:14:56.376Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-traits.js"
+    ]
+  },
+  {
+    "operation": 61,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3687,
+    "timestamp": "2026-09-10T19:15:03.898Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-journal.test.js"
+    ]
+  },
+  {
+    "operation": 62,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3692,
+    "timestamp": "2026-09-10T19:15:14.862Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-journal.js"
+    ]
+  },
+  {
+    "operation": 67,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 757,
+    "timestamp": "2026-09-10T19:15:42.680Z",
+    "action": "exact recorded behavior integration script",
+    "changedFiles": [
+      "engine/encounters.js",
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 68,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 643,
+    "timestamp": "2026-09-10T19:15:44.622Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-traits.test.js"
+    ]
+  },
+  {
+    "operation": 70,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 643,
+    "timestamp": "2026-09-10T19:15:44.622Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/world-traits.js"
+    ]
+  },
+  {
+    "operation": 73,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1114,
+    "timestamp": "2026-09-10T19:15:48.514Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "engine/main-regions.test.js"
+    ]
+  },
+  {
+    "operation": 75,
+    "sourceRollout": "rollout-2026-09-10T12-52-27-01a08c3c-2565-7e71-95ca-c0bc9b5af38a.jsonl",
+    "sourceLine": 1122,
+    "timestamp": "2026-09-10T19:16:00.624Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/main-regions.test.js"
+    ]
+  },
+  {
+    "operation": 82,
+    "sourceRollout": "rollout-2026-09-10T13-02-25-01a08c45-4650-7861-b841-8f13f1ec2e12.jsonl",
+    "sourceLine": 681,
+    "timestamp": "2026-09-10T19:16:44.556Z",
+    "action": "exact apply_patch replay",
+    "changedFiles": [
+      "server/world-api.test.ts"
+    ]
+  },
+  {
+    "operation": 84,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 780,
+    "timestamp": "2026-09-10T19:16:47.145Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-behavior.test.js"
+    ]
+  },
+  {
+    "operation": 85,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 787,
+    "timestamp": "2026-09-10T19:17:17.057Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/combat-behavior.test.js",
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 87,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 806,
+    "timestamp": "2026-09-10T19:18:18.705Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-behavior.test.js"
+    ]
+  },
+  {
+    "operation": 88,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 813,
+    "timestamp": "2026-09-10T19:18:30.217Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 89,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 822,
+    "timestamp": "2026-09-10T19:18:58.778Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-behavior.test.js"
+    ]
+  },
+  {
+    "operation": 90,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 827,
+    "timestamp": "2026-09-10T19:19:13.129Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 91,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 834,
+    "timestamp": "2026-09-10T19:19:44.621Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "engine/combat-behavior.test.js"
+    ]
+  },
+  {
+    "operation": 92,
+    "sourceRollout": "rollout-2026-09-10T12-52-17-01a08c3c-00b3-7551-b9ed-b8d32a31953d.jsonl",
+    "sourceLine": 839,
+    "timestamp": "2026-09-10T19:19:54.883Z",
+    "action": "exact recorded Python file transformation",
+    "changedFiles": [
+      "engine/world-simulation.js"
+    ]
+  },
+  {
+    "operation": 95,
+    "sourceRollout": "rollout-2026-09-10T10-51-56-01a08bcd-cefd-73a2-a6ae-48c6a2ee243c.jsonl",
+    "sourceLine": 3811,
+    "timestamp": "2026-09-10T19:27:03.002Z",
+    "action": "exact recorded heredoc file write",
+    "changedFiles": [
+      "HANDOFF_CLAUDE_CODE.md"
+    ]
+  }
+]
