@@ -1,0 +1,12 @@
+.character-dialogue[hidden]{display:none}
+.character-dialogue{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;padding:24px;background:linear-gradient(transparent 55%,#0b11142b);isolation:isolate}
+.character-dialogue-panel{position:relative;width:min(1100px,100%);min-height:185px;margin:0 auto;background:#101819f5;color:#f8efd4;border:3px solid #e0cca0;box-shadow:0 0 0 4px #172325,0 10px 45px #0008;padding:32px 155px 54px 28px;font-family:'VT323',monospace}
+#characterSpeaker{position:absolute;left:-3px;top:-37px;background:#101819;border:3px solid #e0cca0;padding:3px 16px;font-size:23px;letter-spacing:.5px}
+#characterSpeech{margin:0;max-width:850px;font-size:clamp(23px,2.5vw,32px);line-height:1.3;white-space:pre-wrap;min-height:2.6em}
+.character-dialogue-panel canvas{position:absolute;right:18px;top:-70px;background:#263132;border:3px solid #e0cca0;width:120px;height:120px;image-rendering:pixelated}
+.character-dialogue-panel button{position:absolute;right:20px;bottom:15px;background:transparent;border:1px solid #9e8c67;color:#f8efd4;font:22px 'VT323',monospace;padding:5px 14px;cursor:pointer}
+.character-dialogue-panel button:focus-visible{outline:2px solid #fff5c7;outline-offset:4px}
+.character-dialogue.is-thought #characterSpeech{color:#e0d8c4;font-style:italic}
+.character-speaking .actionbar,.character-speaking .hud-health,.character-speaking .combo-guide,.character-speaking .mobile-controls{visibility:hidden}
+@media(max-width:600px){.character-dialogue{padding:12px}.character-dialogue-panel{min-height:180px;padding:25px 20px 52px}.character-dialogue-panel canvas{width:82px;height:82px;right:10px;top:-90px}#characterSpeaker{font-size:20px;top:-35px}#characterSpeech{font-size:24px}.character-dialogue-panel button{font-size:20px}}
+@media(max-height:470px){.character-dialogue{padding:10px}.character-dialogue-panel{min-height:118px;padding:14px 115px 42px 18px}.character-dialogue-panel canvas{width:80px;height:80px;right:15px;top:-42px}#characterSpeech{font-size:22px;line-height:1.1}#characterSpeaker{font-size:19px;top:-32px}}

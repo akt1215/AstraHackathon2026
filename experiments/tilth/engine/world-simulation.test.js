@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {WorldSimulation} from './world-simulation.js';
+import {advance,obstacles} from '../world.js';
+import {drawVolcanic} from '../volcanic.js';
+const free=(p,dx,dy)=>({x:p.x+dx,y:p.y+dy});
+const live=()=>[{id:'rowan',name:'Rowan',x:300,y:300,hp:100,maxHp:100,attackable:false,direction:'right'},{id:'clover',name:'Clover',x:430,y:300,hp:90,maxHp:90,direction:'left'}];
+function setup(){const s=new WorldSimulation({mover:free}),actors=live(),player={x:400,y:300};s.sync({player,actors,room:null,hp:280,maxHp:280,profile:{name:'Traveler'}});return {s,actors,player};}
+const act=(s,ops,actor='player')=>s.apply({actor,intent:'Test intention',ops});
+test('the opening goal is completable from fresh positions through rendered collision geometry',()=>{
+ const context=new Proxy({getImageData:()=>({data:new Uint8ClampedArray(800*600*4)}),createRadialGradient:()=>({addColorStop(){}})},{get:(object,key)=>key in object?object[key]:()=>{}});
+ const originalObstacles=obstacles.slice();
+ try{
+  drawVolcanic(context);assert.ok(obstacles.length>0);
+  const s=new WorldSimulation();
+  const perform=(ops,id='player')=>{const result=act(s,ops,id);assert.equal(result.ok,true,result.reason);};
+  const approach=(id,range)=>{
+   const start=s.position('player'),target=s.position(id),queue=[{...start,path:[]}],seen=new Set([`${start.x},${start.y}`]);let route;
+   for(let i=0;i<queue.length&&i<10000;i++){
+    const position=queue[i];
+    if(Math.hypot(position.x-target.x,position.y-target.y)<=range&&s.clear(position,target)){route=position.path;break;}
+    for(const [dx,dy] of [[12,0],[-12,0],[0,12],[0,-12]]){
+     const next=advance(position,dx,dy,position.room),key=`${next.x},${next.y}`;
+     if(!seen.has(key)){seen.add(key);queue.push({...next,room:position.room,path:[...position.path,next]});}
+    }
+   }
+   assert.ok(route,`No physically reachable approach to ${id}`);
+   for(const point of route)perform([{kind:'move',entity:'player',x:point.x,y:point.y,style:'walk'}]);
+  };
+  approach('medicine',70);perform([{kind:'transfer',entity:'medicine',to:'player'}]);
+  approach('rowan',100);perform([{kind:'transform',entity:'medicine',rule:'settle',target:'rowan'}]);
+  approach('clover',70);perform([{kind:'transform',entity:'medicine',rule:'heal',target:'clover'}]);
+  approach('rowan',100);perform([{kind:'emote',topic:'talk',target:'rowan',text:'I paid for your herbs and used them to help Clover recover. Will you support me?'}]);
+  assert.ok(s.state.actors.rowan.memories.some(memory=>['speech','speech_heard'].includes(memory.kind)));
+  const paidIssue=s.state.issues.find(issue=>issue.entity==='medicine');
+  assert.equal(paidIssue?.status,'settled');
+  assert.ok(s.state.actors.rowan.memories.some(memory=>memory.kind==='settle'&&memory.subject===paidIssue.id));
+  assert.equal(s.view('rowan').knownIssues.find(issue=>issue.entity==='medicine')?.status,'settled');
+  perform([{kind:'transform',entity:'rowan',rule:'permit',target:'player'}],'rowan');
+  assert.equal(s.state.actors.player.coins,2);
+  assert.equal(s.state.actors.clover.fatigue,55);
+  assert.ok(s.state.actors.player.evidence.some(evidence=>evidence.id==='heal:clover:medicine'));
+  assert.equal(s.state.objective.status,'complete');
+ }finally{obstacles.splice(0,obstacles.length,...originalObstacles);}
+});
+test('direct movement remains bounded, atomic, and uses live coordinates',()=>{const {s,player}=setup();assert.equal(act(s,[{kind:'move',entity:'player',x:412,y:300,style:'walk'}]).ok,true);assert.equal(player.x,412);const before=structuredClone(s.state);assert.equal(act(s,[{kind:'move',entity:'player',x:424,y:300,style:'walk'},{kind:'transfer',entity:'missing',to:'player'}]).ok,false);assert.deepEqual(s.state,before);assert.equal(player.x,412);assert.equal(act(s,[{kind:'move',entity:'player',x:600,y:300,style:'walk'}]).ok,false);});
+test('closed and other-held nested containers conceal clues and reject guessed access',()=>{const {s}=setup();s.state.entities['supply-chest'].location={kind:'ground',room:null,x:410,y:300};assert.equal(s.view('player').entities.some(e=>e.id==='supply-note'),false);assert.equal(act(s,[{kind:'transform',entity:'supply-note',rule:'inspect'}]).ok,false);assert.equal(act(s,[{kind:'transform',entity:'supply-chest',rule:'open'}]).ok,true);assert.equal(JSON.stringify(s.view('player')).includes(s.state.entities['supply-note'].props.clue),false);s.state.entities['supply-chest'].location={kind:'held',actor:'clover'};assert.equal(s.view('player').entities.some(e=>e.id==='supply-note'),false);assert.equal(act(s,[{kind:'transform',entity:'supply-note',rule:'inspect'}]).ok,false);s.state.entities['supply-chest'].location={kind:'held',actor:'player'};assert.equal(act(s,[{kind:'transform',entity:'supply-note',rule:'inspect'}]).ok,true);assert.ok(s.state.actors.player.memories.some(o=>o.kind==='discovery'));assert.equal(s.state.actors.clover.memories.some(o=>o.kind==='discovery'),false);});
+test('witnessed taking can be reported later; unseen obligations do not block Rowan',()=>{const {s,actors}=setup();actors[0].x=100;actors[1].direction='right';s.sync({player:{x:480,y:350},actors,room:null,hp:280});s.state.entities.medicine.location={kind:'ground',room:null,x:480,y:350};assert.equal(act(s,[{kind:'transfer',entity:'medicine',to:'player'}]).ok,true);assert.equal(s.view('rowan').knownIssues.length,0);const observed=s.state.actors.clover.memories.find(o=>o.kind==='take');assert.ok(observed);actors[0].x=340;actors[1].direction='left';s.sync({player:{x:480,y:350},actors,room:null,hp:280});assert.equal(act(s,[{kind:'emote',topic:'report',target:'rowan',evidence:[observed.id],text:'I saw the supplies taken.'}],'clover').ok,true);assert.equal(s.view('rowan').knownIssues.length,1);assert.equal(act(s,[{kind:'transform',entity:'rowan',rule:'permit',target:'player'}],'rowan').ok,false);});
+test('settlement knowledge follows observation rather than global issue status',()=>{const {s}=setup();s.state.entities.medicine.location={kind:'ground',room:null,x:400,y:300};assert.ok(act(s,[{kind:'transfer',entity:'medicine',to:'player'}]).ok);s.state.actors.player.coins=9;assert.ok(act(s,[{kind:'transform',entity:'medicine',rule:'settle',target:'rowan'}]).ok);assert.equal(s.state.issues[0].status,'settled');assert.equal(s.state.actors.player.coins,5);});
+test('first sightings are edge-triggered and room movement does not reveal remote NPCs',()=>{const {s,actors,player}=setup();s.reactions();for(let i=0;i<8;i++){player.x+=1;s.sync({player,actors,room:null,hp:280});assert.deepEqual(s.reactions(),[]);}s.sync({player:{x:400,y:397},actors,room:'inn',hp:280});assert.equal(s.view('player').entities.some(e=>e.id==='rowan'),false);assert.equal(s.publicState().entities.some(e=>e.id==='inn-chest'),true);});
+test('Rowan remains invulnerable to thrown objects and combat sync',()=>{const {s,actors}=setup();s.state.entities.stone.location={kind:'held',actor:'player'};assert.ok(act(s,[{kind:'move',entity:'stone',x:300,y:300,style:'throw'}]).ok);assert.equal(s.state.actors.rowan.hp,100);assert.equal(actors[0].hp,100);});
+test('rest, food and saved bindings persist shared character conditions',()=>{const {s,actors,player}=setup();s.state.entities.ration.location={kind:'held',actor:'clover'};assert.ok(act(s,[{kind:'transform',entity:'ration',rule:'eat'}],'clover').ok);assert.equal(s.state.actors.clover.fatigue,45);assert.equal(s.state.entities.ration.location.kind,'removed');s.state.actors.clover.wakefulness='asleep';const restored=new WorldSimulation({saved:structuredClone(s.state),mover:free}),fresh=live(),p={x:1,y:1},encounters={hp:1};restored.restoreBindings({player:p,actors:fresh,encounters});assert.deepEqual(p,player);assert.equal(encounters.hp,280);restored.sync({player:p,actors:fresh,room:null,hp:encounters.hp});assert.equal(restored.state.actors.clover.fatigue,45);assert.equal(fresh[1].worldSleeping,true);});
+test('live combat damage yields witnessed history once without repeated frame events',()=>{const {s,actors,player}=setup();actors[1].hp-=16;s.sync({player,actors,room:null,hp:280});const damage=s.state.events.filter(e=>e.kind==='injury');assert.equal(damage.length,1);assert.ok(damage[0].witnesses.includes('clover'));s.sync({player,actors,room:null,hp:280});assert.equal(s.state.events.filter(e=>e.kind==='injury').length,1);});
+test('consumed supplies can still be paid by obligation ID without exposing removed items',()=>{const {s}=setup();s.state.entities.ration.location={kind:'ground',room:null,x:400,y:300};assert.ok(act(s,[{kind:'transfer',entity:'ration',to:'player'}]).ok);const id=s.state.issues[0].id;assert.ok(act(s,[{kind:'transform',entity:'ration',rule:'eat'}]).ok);assert.ok(act(s,[{kind:'transform',entity:id,rule:'settle',target:'rowan'}]).ok);assert.equal(s.state.issues[0].status,'settled');});
+test('NPC chatter does not recursively request every other NPC again',()=>{const {s}=setup();s.reactions();assert.ok(act(s,[{kind:'emote',topic:'talk',text:'I am still here.'}],'clover').ok);assert.deepEqual(s.reactions(),[]);});
+test('settle rejects a false owner and does not spend coins',()=>{const {s}=setup();s.state.entities.ration.location={kind:'ground',room:null,x:400,y:300};assert.ok(act(s,[{kind:'transfer',entity:'ration',to:'player'}]).ok);const coins=s.state.actors.player.coins;assert.equal(act(s,[{kind:'transform',entity:'ration',rule:'settle',target:'clover'}]).ok,false);assert.equal(s.state.actors.player.coins,coins);});
+test('model memory stays bounded while authoritative memories survive long play',()=>{const {s}=setup();for(let i=0;i<125;i++)assert.ok(act(s,[{kind:'transform',entity:'player',rule:'rest'}]).ok);assert.ok(s.state.actors.player.memories.length>120);assert.ok(s.view('player').actor.memories.length<=120);assert.ok(s.view('player').observations.length<=120);});
+test('placing a held item honors explicit nearby coordinates and rejects distant placement',()=>{const {s}=setup();s.state.entities.stone.location={kind:'held',actor:'player'};assert.ok(act(s,[{kind:'transfer',entity:'stone',to:'ground',x:440,y:330}]).ok);assert.deepEqual(s.state.entities.stone.location,{kind:'ground',room:null,x:440,y:330});s.state.entities.stone.location={kind:'held',actor:'player'};assert.equal(act(s,[{kind:'transfer',entity:'stone',to:'ground',x:700,y:300}]).ok,false);assert.equal(s.state.entities.stone.location.kind,'held');});
+test('local combat actors cannot receive model decisions while hostile, down or enemy',()=>{const {s,actors,player}=setup();actors[1].hostile=true;s.sync({player,actors,room:null,hp:280});assert.equal(act(s,[{kind:'transform',entity:'clover',rule:'rest'}],'clover').ok,false);actors[1].hostile=false;actors[1].downUntil=5000;s.sync({player,actors,room:null,hp:280});assert.equal(act(s,[{kind:'transform',entity:'clover',rule:'rest'}],'clover').ok,false);assert.equal(act(s,[{kind:'transform',entity:'ash-raider',rule:'rest'}],'ash-raider').ok,false);});
+test('the rendered inn chest is visible and inspectable at its reachable furniture surface',()=>{const s=new WorldSimulation();s.sync({player:{x:267,y:405},actors:live(),room:'inn',hp:280});assert.ok(s.view('player').entities.some(e=>e.id==='inn-chest'));assert.ok(act(s,[{kind:'transform',entity:'inn-chest',rule:'open'}]).ok);assert.ok(s.view('player').entities.some(e=>e.id==='inn-note'));assert.ok(act(s,[{kind:'transform',entity:'inn-note',rule:'inspect'}]).ok);});
+test('a heard impact prompts one reaction without giving an unseen thrower an identity',()=>{const {s,actors,player}=setup();actors[0].direction='left';s.sync({player,actors,room:null,hp:280});s.reactions();s.state.entities.stone.location={kind:'held',actor:'player'};assert.ok(act(s,[{kind:'move',entity:'stone',x:360,y:300,style:'throw'}]).ok);const noise=s.state.actors.rowan.memories.findLast(m=>m.kind==='noise_heard');assert.ok(noise);assert.equal(noise.actor,undefined);assert.ok(s.reactions().includes('rowan'));assert.deepEqual(s.reactions(),[]);});
+test('a recipient notices a direct gift or payment even while facing away',()=>{const {s,actors,player}=setup();actors[1].x=460;actors[1].direction='right';s.sync({player,actors,room:null,hp:280});s.reactions();s.state.entities['inn-ration'].location={kind:'held',actor:'player'};assert.ok(act(s,[{kind:'transfer',entity:'inn-ration',to:'clover'}]).ok);assert.ok(s.state.actors.clover.memories.some(m=>m.kind==='give'));assert.ok(s.reactions().includes('clover'));});
